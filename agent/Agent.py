@@ -7,9 +7,6 @@ class Agent(metaclass=ABCMeta):
     Agent interface to handle action output, rewards, etc.
     """
 
-    episode_tag = None
-    timeStep = None
-
     def __init__(self):
         pass
 
@@ -48,9 +45,27 @@ class Agent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def giveReward(self):
+    def giveReward(self, reward):
         """
         Provide the reward to the agent for the last action taken.
+        :return:
+        """
+        pass
+
+    @abstractmethod
+    def endOfEpisodeUpdate(self):
+        """
+        Update parameters after the conclusion of an episode.
+        :return:
+        """
+        pass
+
+    @abstractmethod
+    def saveModel(self, filename, folder=None):  #  TODO should this be abstract? Folder saving conventions?
+        """
+        Save the model to the disk.
+        :param filename: Filename to save to
+        :param folder:
         :return:
         """
         pass
