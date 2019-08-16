@@ -130,7 +130,7 @@ class SSRL(agent.Agent):
             self.params = Params(self.layers, self.nnet_bias)
             self.params.initializeRandom()
 
-    
+
 
 
 
