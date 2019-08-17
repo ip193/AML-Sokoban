@@ -1,8 +1,11 @@
-import time
+import gzip
+import marshal
+import pickle
 
 import numpy as np
 from gym_sokoban.envs import SokobanEnv
-from gym_sokoban.envs.room_utils import room_topology_generation
+from gym_sokoban.envs.room_utils import room_topology_generation, box_displacement_score, ACTION_LOOKUP, reverse_move
+from tqdm import tqdm
 
 
 def create_empty_room(env):
@@ -72,19 +75,165 @@ def get_box_mapping(room_structure):
     return box_mapping
 
 
+#
+#
+#
+# Global variables used for reverse playing.
+explored_states = set()
+num_boxes = 0
+best_room_score = -1
+best_room = None
+best_box_mapping = None
+best_actions = None
+best_old_room_states = None
+
+
+def reverse_playing(room_state, room_structure, search_depth=100):
+    """
+    This function plays Sokoban reverse in a way, such that the player can
+    move and pull boxes.
+    It ensures a solvable level with all boxes not being placed on a box target.
+    :param room_state:
+    :param room_structure:
+    :param search_depth:
+    :return: 2d array
+    """
+    global explored_states, num_boxes, best_room_score, best_room, best_box_mapping
+
+    # Box_Mapping is used to calculate the box displacement for every box
+    box_mapping = {}
+    box_locations = np.where(room_structure == 2)
+    num_boxes = len(box_locations[0])
+    for l in range(num_boxes):
+        box = (box_locations[0][l], box_locations[1][l])
+        box_mapping[box] = box
+
+    # explored_states globally stores the best room state and score found during search
+    explored_states = set()
+    best_room_score = -1
+    best_box_mapping = box_mapping
+    depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, last_pull=(-1, -1), ttl=300)
+
+    return best_room, best_room_score, best_box_mapping
+
+
+def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, last_pull=(-1, -1), ttl=300, actions=None, old_room_states=None, max_action_length=10):
+    """
+    Searches through all possible states of the room.
+    """
+    if actions is None:
+        actions = []
+    if old_room_states is None:
+        old_room_states = []
+
+    global explored_states, num_boxes, best_room_score, best_room, best_box_mapping, best_actions, best_old_room_states
+
+    ttl -= 1
+    if ttl <= 0 or len(explored_states) >= 50000:
+        return
+
+    state_tohash = marshal.dumps(room_state)
+
+    # Only search this state, if it not yet has been explored
+    if not (state_tohash in explored_states):
+
+        # Add current state and its score to explored states
+        room_score = box_swaps * box_displacement_score(box_mapping)
+        if np.where(room_state == 2)[0].shape[0] != num_boxes:
+            room_score = 0
+
+        if room_score > best_room_score:
+            best_room = room_state
+            best_room_score = room_score
+            best_box_mapping = box_mapping
+            best_actions = actions
+            best_old_room_states = old_room_states
+
+        explored_states.add(state_tohash)
+
+        for action in ACTION_LOOKUP.keys():
+            # The state and box mapping  need to be copied to ensure
+            # every action start from a similar state.
+            room_state_next = room_state.copy()
+            box_mapping_next = box_mapping.copy()
+            actions_next = actions.copy()
+            old_room_states_next = old_room_states.copy()
+
+            room_state_next, box_mapping_next, last_pull_next = \
+                reverse_move(room_state_next, room_structure, box_mapping_next, last_pull, action)
+
+            box_swaps_next = box_swaps
+            if not np.array_equal(room_state_next, room_state):
+                if len(np.where(room_state_next == 2)[0]) > 0:  # only save actions if not solved
+                    actions_next.append(action)
+                    old_room_states_next.append(room_state_next)
+
+                if last_pull_next != last_pull:
+                    box_swaps_next += 1
+
+            if len(actions_next) < max_action_length:
+                depth_first_search(room_state_next, room_structure,
+                                   box_mapping_next, box_swaps_next,
+                                   last_pull, ttl, actions_next, old_room_states_next)
+
+
+#
+#
+#
+
+def action_solver(actions):
+    action_mapper = {0: 1, 1: 0, 2: 3, 3: 2, 4: 5, 5: 4, 6: 7, 7: 6}
+    solution = []
+    for action in actions[::-1]:
+        solution.append(action_mapper[action])
+    return solution
+
+
 if __name__ == '__main__':
-    env = SokobanEnv(dim_room=(7, 7), max_steps=200, num_boxes=2, num_gen_steps=None, reset=False)
-    room = create_empty_room(env)
-    room = place_boxes_and_player(room, num_boxes=env.num_boxes, second_player=False)
+    env = SokobanEnv(dim_room=(10, 10), max_steps=200, num_boxes=3, num_gen_steps=None, reset=False)
 
-    room_structure = get_room_structure(room)
-    room_state = get_room_state(room)
-    env.room_fixed, env.room_state, env.box_mapping = room, room_state, get_box_mapping(room_structure)
+    X, y = [], []
+    for _ in tqdm(range(100)):
 
-    # TODO move player and boxes
-    # TODO record movements of player (state + action)
-    # TODO save data
+        score = 0
+        while score == 0:
+            try:
+                room = create_empty_room(env)
+                room = place_boxes_and_player(room, num_boxes=env.num_boxes, second_player=False)
 
-    # visualize
-    env.render('human')
-    time.sleep(10)
+                room_structure = get_room_structure(room)
+                room_state = get_room_state(room)
+
+                room_state, score, box_mapping = reverse_playing(room_state, room_structure)
+
+                env.room_fixed, env.room_state, env.box_mapping = room, room_state, get_box_mapping(room_structure)
+            except:
+                pass
+            # print('score:', score)
+
+        actions_solution = action_solver(best_actions)
+        best_old_room_states = best_old_room_states[::-1]
+
+        for state, action in zip(best_old_room_states, actions_solution):
+            X.append(state)
+            y.append(action)
+            # print(state)
+            # print(ACTION_LOOKUP[action])
+
+        # print("---")
+
+        # # visualize
+        # for action in actions_solution:
+        #     print(ACTION_LOOKUP[action])
+
+        # env.render('human')
+        # time.sleep(10)
+
+    print('len(X)', len(X))
+
+    # save data
+    with gzip.open('X.pkl.gz', 'wb') as f:
+        pickle.dump(X, f, pickle.HIGHEST_PROTOCOL)
+
+    with gzip.open('y.pkl.gz', 'wb') as f:
+        pickle.dump(y, f, pickle.HIGHEST_PROTOCOL)
