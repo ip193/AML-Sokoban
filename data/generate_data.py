@@ -1,6 +1,7 @@
 import gzip
 import marshal
 import pickle
+import time
 
 import numpy as np
 from gym_sokoban.envs import SokobanEnv
@@ -129,7 +130,7 @@ def reverse_playing(room_state, room_structure, search_depth=100):
     return best_room, best_room_score, best_box_mapping
 
 
-def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, last_pull=(-1, -1), ttl=300, actions=None, old_room_states=None, distances=None, max_action_length=30):
+def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, last_pull=(-1, -1), ttl=300, actions=None, old_room_states=None, distances=None, max_action_length=50):
     """
     Searches through all possible states of the room.
     """
@@ -143,7 +144,7 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
     global explored_states, num_boxes, best_room_score, best_room, best_box_mapping, best_actions, best_old_room_states, best_distances
 
     ttl -= 1
-    if ttl <= 0 or len(explored_states) >= 50000:
+    if ttl <= 0 or len(explored_states) >= 100000:
         return
 
     state_tohash = marshal.dumps(room_state)
@@ -210,7 +211,7 @@ if __name__ == '__main__':
     env = SokobanEnv(dim_room=(10, 10), max_steps=200, num_boxes=3, num_gen_steps=None, reset=False)
 
     X, y = [], []
-    for _ in tqdm(range(10)):
+    for _ in tqdm(range(100)):
 
         score = 0
         while score == 0:
@@ -248,10 +249,19 @@ if __name__ == '__main__':
     print('len(X)', len(X))
 
     # TODO check for duplicate states and remove state with bigger distance
+    hashed_x = []
+    for x in tqdm(X.copy()):
+        x_hash = hash(marshal.dumps(x))
+        if x_hash in hashed_x:
+            print("! Duplicate in Dataset!!!")
+        else:
+            hashed_x.append(x_hash)
 
     # save data
-    with gzip.open('X.pkl.gz', 'wb') as f:
+    timestamp = time.time()
+    print(timestamp)
+    with gzip.open(f'X_{timestamp}.pkl.gz', 'wb') as f:
         pickle.dump(X, f, pickle.HIGHEST_PROTOCOL)
 
-    with gzip.open('y.pkl.gz', 'wb') as f:
+    with gzip.open(f'y_{timestamp}.pkl.gz', 'wb') as f:
         pickle.dump(y, f, pickle.HIGHEST_PROTOCOL)
