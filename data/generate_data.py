@@ -75,9 +75,6 @@ def get_box_mapping(room_structure):
     return box_mapping
 
 
-#
-#
-#
 # Global variables used for reverse playing.
 explored_states = set()
 num_boxes = 0
@@ -86,6 +83,7 @@ best_room = None
 best_box_mapping = None
 best_actions = None
 best_old_room_states = None
+best_distances = None
 
 
 def reverse_playing(room_state, room_structure, search_depth=100):
@@ -117,7 +115,7 @@ def reverse_playing(room_state, room_structure, search_depth=100):
     return best_room, best_room_score, best_box_mapping
 
 
-def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, last_pull=(-1, -1), ttl=300, actions=None, old_room_states=None, max_action_length=10):
+def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, last_pull=(-1, -1), ttl=300, actions=None, old_room_states=None, distances=None, max_action_length=30):
     """
     Searches through all possible states of the room.
     """
@@ -125,8 +123,10 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
         actions = []
     if old_room_states is None:
         old_room_states = []
+    if distances is None:
+        distances = []
 
-    global explored_states, num_boxes, best_room_score, best_room, best_box_mapping, best_actions, best_old_room_states
+    global explored_states, num_boxes, best_room_score, best_room, best_box_mapping, best_actions, best_old_room_states, best_distances
 
     ttl -= 1
     if ttl <= 0 or len(explored_states) >= 50000:
@@ -148,6 +148,7 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
             best_box_mapping = box_mapping
             best_actions = actions
             best_old_room_states = old_room_states
+            best_distances = distances
 
         explored_states.add(state_tohash)
 
@@ -158,14 +159,16 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
             box_mapping_next = box_mapping.copy()
             actions_next = actions.copy()
             old_room_states_next = old_room_states.copy()
+            distances_next = distances.copy()
 
             room_state_next, box_mapping_next, last_pull_next = \
                 reverse_move(room_state_next, room_structure, box_mapping_next, last_pull, action)
 
             box_swaps_next = box_swaps
-            if not np.array_equal(room_state_next, room_state):
+            if not np.array_equal(room_state_next, room_state):  # only use room_state if something has changed
                 if len(np.where(room_state_next == 2)[0]) > 0:  # only save actions if not solved
                     actions_next.append(action)
+                    distances_next.append(len(actions_next))
                     old_room_states_next.append(room_state_next)
 
                 if last_pull_next != last_pull:
@@ -174,12 +177,8 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
             if len(actions_next) < max_action_length:
                 depth_first_search(room_state_next, room_structure,
                                    box_mapping_next, box_swaps_next,
-                                   last_pull, ttl, actions_next, old_room_states_next)
+                                   last_pull, ttl, actions_next, old_room_states_next, distances_next)
 
-
-#
-#
-#
 
 def action_solver(actions):
     action_mapper = {0: 1, 1: 0, 2: 3, 3: 2, 4: 5, 5: 4, 6: 7, 7: 6}
@@ -193,7 +192,7 @@ if __name__ == '__main__':
     env = SokobanEnv(dim_room=(10, 10), max_steps=200, num_boxes=3, num_gen_steps=None, reset=False)
 
     X, y = [], []
-    for _ in tqdm(range(100)):
+    for _ in tqdm(range(10)):
 
         score = 0
         while score == 0:
@@ -212,11 +211,10 @@ if __name__ == '__main__':
             # print('score:', score)
 
         actions_solution = action_solver(best_actions)
-        best_old_room_states = best_old_room_states[::-1]
 
-        for state, action in zip(best_old_room_states, actions_solution):
+        for state, distance in zip(best_old_room_states, best_distances):
             X.append(state)
-            y.append(action)
+            y.append(distance)
             # print(state)
             # print(ACTION_LOOKUP[action])
 
@@ -230,6 +228,8 @@ if __name__ == '__main__':
         # time.sleep(10)
 
     print('len(X)', len(X))
+
+    # TODO check for duplicate states and remove state with bigger distance
 
     # save data
     with gzip.open('X.pkl.gz', 'wb') as f:
