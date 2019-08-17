@@ -86,6 +86,18 @@ best_old_room_states = None
 best_distances = None
 
 
+def reset_globals():
+    global explored_states, num_boxes, best_room_score, best_room, best_box_mapping, best_actions, best_old_room_states, best_distances
+    explored_states = set()
+    num_boxes = 0
+    best_room_score = -1
+    best_room = None
+    best_box_mapping = None
+    best_actions = None
+    best_old_room_states = None
+    best_distances = None
+
+
 def reverse_playing(room_state, room_structure, search_depth=100):
     """
     This function plays Sokoban reverse in a way, such that the player can
@@ -97,6 +109,8 @@ def reverse_playing(room_state, room_structure, search_depth=100):
     :return: 2d array
     """
     global explored_states, num_boxes, best_room_score, best_room, best_box_mapping
+
+    reset_globals()
 
     # Box_Mapping is used to calculate the box displacement for every box
     box_mapping = {}
@@ -136,6 +150,10 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
 
     # Only search this state, if it not yet has been explored
     if not (state_tohash in explored_states):
+
+        if len(distances) == 0:
+            distances.append(0)
+            old_room_states.append(room_state)
 
         # Add current state and its score to explored states
         room_score = box_swaps * box_displacement_score(box_mapping)
