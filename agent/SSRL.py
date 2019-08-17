@@ -12,7 +12,8 @@ class Episode:
 
     def __init__(self, agent):
         self.rewards = None
-        self.means_eligibility_traces, self.stds_eligibility_traces = None, None
+        self.means_eligibility_traces_running_sum, self.stds_eligibility_traces_running_sum = None, None
+        #  These matrices hold the running totals for (eligibility traces * reward decay) for each weight
         self.timeStep, self.episode_tag = None, None
 
         self.observation = None
@@ -32,8 +33,8 @@ class Episode:
         self.episode_tag = episode_tag  # parent class attributes
         self.observation = None
 
-        self.means_eligibility_traces = [np.zeros(m.shape) for m in self.agent.params.means]
-        self.stds_eligibility_traces = [np.zeros(s.shape) for s in self.agent.params.stds]
+        self.means_eligibility_traces_running_sum = [np.zeros(m.shape) for m in self.agent.params.means]
+        self.stds_eligibility_traces_running_sum = [np.zeros(s.shape) for s in self.agent.params.stds]
 
     def setObservation(self, observation):
         """
@@ -67,11 +68,11 @@ class Params:
         """
         error = False
 
-        if self.means[0].shape != self.stds[0].shape:
+        if self.means[0].shape != self.stds[0].shape or self.means[0].shape[1] != self.layers[0]:
             error = True
 
         for i in range(1, len(self.layers)):
-            if self.means[i].shape != self.stds[i].shape:
+            if self.means[i-1].shape != self.stds[i-1].shape:
                 error = True
 
             if i != len(self.layers) - 1:
@@ -82,7 +83,7 @@ class Params:
                     error = True
 
             else:
-                if self.layers[i] != self.means[i].shape[0]:
+                if self.layers[i] != self.means[i-1].shape[0]:
                     error = True
 
         if error:
@@ -115,12 +116,32 @@ class Params:
                               + random_bounds[1][0])
 
 
+class History:
+    """
+    Holds information spanning multiple episodes, e.g. average past reward.
+    """
+
+    def __init__(self):
+        self.past_rewards = []
+
+    def getPastAverage(self, min_window=20, proportion=0.2):
+        """
+        Return the average cumulative reward per episode in a set number of past games.
+        :param window: Number of past games to consider
+        :return:
+        """
+
+        window = max(min_window, int(len(self.past_rewards)*proportion))
+
+        return np.mean(self.past_rewards[-window:])
+
+
 class SSRL(agent.Agent):
     """
     Implements Stochastic Synapse Reinforcement Learning
     """
 
-    def __init__(self, layers, nnet_bias, nonlinearity=np.tanh, params=None):
+    def __init__(self, layers, nnet_bias=True, nonlinearity=np.tanh, params=None, learning_rate=0.5, decay=None ):
 
         """
         Provide information about the neural network architecture and set up basic data structures
@@ -128,17 +149,22 @@ class SSRL(agent.Agent):
         :param nnet_bias: True if bias should be added to non-output layers
         :param nonlinearity: Nonlinearity function for use in the network
         :param params: If not None, use these parameters
+        :param learning_rate: Learning rate for mean and standard deviations in formula
+        :param decay: Rate of reward decay for computing updates (None => No decay)
         """
 
         super().__init__()
         self.layers = layers
         self.nnet_bias = nnet_bias
         self.nonlinearity = nonlinearity
+        self.learning_rate = learning_rate
+        self.decay = decay
 
-        self.NNET = None
+        self.NNET = FFNN(self.nonlinearity, self.nnet_bias)
 
         self.episode = Episode(self)
         self.params = None
+        self.history = History()
 
         if params is not None:  # check if dimensions are correct
 
@@ -158,8 +184,6 @@ class SSRL(agent.Agent):
             self.params = Params(self.layers, self.nnet_bias)
             self.params.initializeRandom()
 
-        self.NNET = FFNN(params, self.nonlinearity, self.nnet_bias)
-
     # Abstract methods
 
     def resetEpisode(self, episode_tag=None):  # TODO: Add tag
@@ -176,7 +200,43 @@ class SSRL(agent.Agent):
 
     def act(self):
 
-        return np.argmax(self.NNET.forward(self.episode.observation))
+        """
+        Sample parameters from normal distributions according to formulae, record inputs/activation, store update information
+        and return NNET forward pass.
+        :return: Action to take
+        """
+
+        action_weights = []
+
+        for ind in range(len(self.layers)):
+            if ind == len(self.layers) - 1:
+                # weight matrices in NNET + 1 = number of layers
+                continue
+
+            mean = self.params.means[ind].flatten()
+            cov = np.diag(self.params.stds[ind].flatten())
+
+            layer_weights = np.random.multivariate_normal(mean, cov).reshape(self.params.means[ind].shape)
+            #  sample the multivariate distribution and reshape it for the neural network
+
+            action_weights.append(layer_weights)
+
+        layer_activations = self.NNET.setWeights(action_weights)
+
+        for weight_layer, weights in enumerate(action_weights):
+
+            if self.decay is not None:
+                self.episode.means_eligibility_traces_running_sum *= self.decay  # Apply reward decay
+                self.episode.stds_eligibility_traces_running_sum *= self.decay
+
+            diff_mean = (weights - self.params.means[weight_layer])
+
+            self.episode.means_eligibility_traces_running_sum += layer_activations[weight_layer] * diff_mean
+
+            self.episode.stds_eligibility_traces_running_sum += layer_activations[weight_layer] * \
+            (np.abs(diff_mean) - self.params.stds[weight_layer])
+
+        return np.argmax(layer_activations[-1])
 
     def giveReward(self, reward):
 
@@ -184,7 +244,32 @@ class SSRL(agent.Agent):
 
     def endOfEpisodeUpdate(self):
 
-        raise NotImplementedError  # TODO
+        """
+        Apply the parameter update rules to means and standard deviations
+        :return:
+        """
+
+        avg = self.history.getPastAverage()
+        r = np.sum(self.episode.rewards)
+
+        self.history.past_rewards.append(r)
+
+        factor = self.learning_rate*(r - avg)
+
+        #  Apply the parameter update rules
+        for ind, m in enumerate(self.params.means):
+
+            m += factor*self.episode.means_eligibility_traces_running_sum
+
+        for ind, s in enumerate(self.params.stds):
+
+            s += factor*self.episode.stds_eligibility_traces_running_sum
+
+            self.params.stds[ind] = np.clip(s, 0.05, 1)
+
+
+
+
 
 
 
