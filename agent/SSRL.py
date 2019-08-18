@@ -141,7 +141,8 @@ class SSRL(agent.Agent):
     Implements Stochastic Synapse Reinforcement Learning
     """
 
-    def __init__(self, layers, nnet_bias=True, nonlinearity=np.tanh, params=None, learning_rate=0.5, decay=None ):
+    def __init__(self, layers, nnet_bias=True, nonlinearity=np.tanh, params=None, learning_rate=0.5, decay=None,
+                 as_in_paper=True):
 
         """
         Provide information about the neural network architecture and set up basic data structures
@@ -165,6 +166,8 @@ class SSRL(agent.Agent):
         self.episode = Episode(self)
         self.params = None
         self.history = History()
+
+        self.name = 'SSRL' if as_in_paper else 'SSRL_Jakob_variant'
 
         if params is not None:  # check if dimensions are correct
 
