@@ -130,12 +130,12 @@ def reverse_playing(room_state, room_structure, search_depth=100):
     return best_room, best_room_score, best_box_mapping
 
 
-def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, last_pull=(-1, -1), ttl=300, actions=None, old_room_states=None, distances=None, max_action_length=50):
+def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, last_pull=(-1, -1), ttl=300, actions=None, old_room_states=None, distances=None, max_action_length=30):
     """
     Searches through all possible states of the room.
     """
     if actions is None:
-        actions = []
+        actions = [-1]
     if old_room_states is None:
         old_room_states = []
     if distances is None:
@@ -187,7 +187,7 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
             if not np.array_equal(room_state_next, room_state):  # only use room_state if something has changed
                 if len(np.where(room_state_next == 2)[0]) > 0:  # only save actions if not solved
                     actions_next.append(action)
-                    distances_next.append(len(actions_next))
+                    distances_next.append(len(actions_next) - 1)  # last action is nop
                     old_room_states_next.append(room_state_next)
 
                 if last_pull_next != last_pull:
@@ -200,9 +200,9 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
 
 
 def action_solver(actions):
-    action_mapper = {0: 1, 1: 0, 2: 3, 3: 2, 4: 5, 5: 4, 6: 7, 7: 6}
+    action_mapper = {-1: -1, 0: 1, 1: 0, 2: 3, 3: 2, 4: 5, 5: 4, 6: 7, 7: 6}
     solution = []
-    for action in actions[::-1]:
+    for action in actions:
         solution.append(action_mapper[action])
     return solution
 
@@ -210,9 +210,10 @@ def action_solver(actions):
 if __name__ == '__main__':
     env = SokobanEnv(dim_room=(10, 10), max_steps=200, num_boxes=3, num_gen_steps=None, reset=False)
 
-    X, y = [], []
+    states, distances, actions, room_structures = [], [], [], []
     for _ in tqdm(range(100)):
 
+        room_structure = None
         score = 0
         while score == 0:
             try:
@@ -227,30 +228,20 @@ if __name__ == '__main__':
                 env.room_fixed, env.room_state, env.box_mapping = room, room_state, get_box_mapping(room_structure)
             except:
                 pass
-            # print('score:', score)
 
         actions_solution = action_solver(best_actions)
 
-        for state, distance in zip(best_old_room_states, best_distances):
-            X.append(state)
-            y.append(distance)
-            # print(state)
-            # print(ACTION_LOOKUP[action])
+        for state, distance, action in zip(best_old_room_states, best_distances, actions_solution):
+            states.append(state)
+            distances.append(distance)
+            actions.append(action)
+            room_structures.append(room_structure)
 
-        # print("---")
+    print('len(states)', len(states))
 
-        # # visualize
-        # for action in actions_solution:
-        #     print(ACTION_LOOKUP[action])
-
-        # env.render('human')
-        # time.sleep(10)
-
-    print('len(X)', len(X))
-
-    # TODO check for duplicate states and remove state with bigger distance
+    # TODO remove duplicate state with bigger distance
     hashed_x = []
-    for x in tqdm(X.copy()):
+    for x in tqdm(states.copy()):
         x_hash = hash(marshal.dumps(x))
         if x_hash in hashed_x:
             print("! Duplicate in Dataset!!!")
@@ -260,8 +251,14 @@ if __name__ == '__main__':
     # save data
     timestamp = time.time()
     print(timestamp)
-    with gzip.open(f'X_{timestamp}.pkl.gz', 'wb') as f:
-        pickle.dump(X, f, pickle.HIGHEST_PROTOCOL)
+    with gzip.open(f'states_{timestamp}.pkl.gz', 'wb') as f:
+        pickle.dump(states, f, pickle.HIGHEST_PROTOCOL)
 
-    with gzip.open(f'y_{timestamp}.pkl.gz', 'wb') as f:
-        pickle.dump(y, f, pickle.HIGHEST_PROTOCOL)
+    with gzip.open(f'distances_{timestamp}.pkl.gz', 'wb') as f:
+        pickle.dump(distances, f, pickle.HIGHEST_PROTOCOL)
+
+    with gzip.open(f'actions_{timestamp}.pkl.gz', 'wb') as f:
+        pickle.dump(actions, f, pickle.HIGHEST_PROTOCOL)
+
+    with gzip.open(f'room_structures_{timestamp}.pkl.gz', 'wb') as f:
+        pickle.dump(room_structures, f, pickle.HIGHEST_PROTOCOL)
