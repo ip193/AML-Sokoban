@@ -1,3 +1,8 @@
+import os.path
+import sys
+
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir))
+
 import gzip
 import marshal
 import pickle
@@ -7,6 +12,8 @@ import numpy as np
 from gym_sokoban.envs import SokobanEnv
 from gym_sokoban.envs.room_utils import room_topology_generation, box_displacement_score, ACTION_LOOKUP, reverse_move
 from tqdm import tqdm
+
+from run.example_fake_solved_game import generate_env, set_env_state, solve_game
 
 
 def create_empty_room(env):
@@ -207,11 +214,17 @@ def action_solver(actions):
     return solution
 
 
+def solution_works(room_structures, room_states, actions, distances, idx):
+    env = generate_env()
+    set_env_state(env, room_structures, room_states, idx)
+    return solve_game(env, actions, distances, idx, render_mode='tiny_rgb_array')
+
+
 if __name__ == '__main__':
     env = SokobanEnv(dim_room=(10, 10), max_steps=200, num_boxes=3, num_gen_steps=None, reset=False)
 
     states, distances, actions, room_structures = [], [], [], []
-    for _ in tqdm(range(100)):
+    for _ in tqdm(range(1000)):
 
         room_structure = None
         score = 0
@@ -231,11 +244,14 @@ if __name__ == '__main__':
 
         actions_solution = action_solver(best_actions)
 
-        for state, distance, action in zip(best_old_room_states, best_distances, actions_solution):
-            states.append(state)
-            distances.append(distance)
-            actions.append(action)
-            room_structures.append(room_structure)
+        if solution_works([room_structure] * len(best_old_room_states), best_old_room_states, actions_solution, best_distances, len(best_old_room_states) - 1):
+            for state, distance, action in zip(best_old_room_states, best_distances, actions_solution):
+                states.append(state)
+                distances.append(distance)
+                actions.append(action)
+                room_structures.append(room_structure)
+        else:
+            print('🚨', 'could not solve a puzzle... skipping...')
 
     print('len(states)', len(states))
 
