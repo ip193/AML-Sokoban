@@ -1,5 +1,7 @@
 import gzip
 import pickle
+import time
+import os
 from random import randint
 
 import numpy as np
@@ -34,6 +36,7 @@ def solve_game(env, actions, distances, idx, render_mode='human'):
 
         action = actions[idx - t] + 1  # ignore 0 = no operation
 
+        time.sleep(1)  # FIXME
         observation, reward, done, info = env.step(action)
         score += reward
         if render_mode == 'human':
@@ -51,6 +54,12 @@ def solve_game(env, actions, distances, idx, render_mode='human'):
 
 
 if __name__ == '__main__':
+
+    jakob = True # FIXME
+
+    if jakob:
+        os.chdir("C:/Users/ASUS-N55S-Laptop/Desktop/AML Final Project/AML-Sokoban/data/")
+
     with gzip.open('../data/train/room_structures_train.pkl.gz', 'rb') as f:
         room_structures = pickle.load(f)
 
@@ -64,6 +73,12 @@ if __name__ == '__main__':
         distances = pickle.load(f)
 
     env = generate_env()
+
+    r_s = np.asarray(room_structures)
+    s = np.asarray(states)
+    a = np.asarray(actions)
+    d = np.asarray(distances)
+
 
     idx = randint(1, len(states))
     print('start game at index', idx)

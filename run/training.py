@@ -3,23 +3,6 @@ import gym_sokoban
 import time
 import numpy as np
 
-# Before you can make a Sokoban Environment you need to call:
-# import gym_sokoban
-# This import statement registers all Sokoban environments
-# provided by this package
-
-
-class SaveInfo:
-    """
-    Holds information about where to save objects and logs, e.g. folder names,
-    """
-
-    def __init__(self, agent):
-
-        pass
-        # TODO
-
-
 
 class Training:
     """
@@ -37,24 +20,20 @@ class Training:
         self.steps = steps
 
         self.agents = agents
-        self.save_info = None
         self.save_every = save_every
 
-        self.X, self.y = None, None  # initial states and the number of steps from a solution to generate them
+        self.X, self.y = None, None  # FIXME initial states and the number of steps from a solution to generate them
 
         self.protocol = None  # this becomes a 2-tuple of lists
         # first list holds numbers of steps, second list holds number of training instances to look at at this distance
 
-    def setSaveInfo(self, save):
-        self.save_info = save
-
-    def setData(self, X, y):
+    def setData(self, X, y):  # FIXME
         self.X, self.y = X, y
 
     def setProtocol(self, steps, training_volume):
         self.protocol = (steps, training_volume)
 
-    def initialize_to_state(self, env, state):
+    def initialize_to_state(self, env, state):  # FIXME
         """
         Set the game to a desired state
         :param env: Sokoban Environment whose state should be altered
@@ -92,19 +71,14 @@ class Training:
             envs.append(gym.make(env_name))
 
         # ACTION_LOOKUP = envs[0].unwrapped.get_action_lookup()
-
         episodes = 0
 
         for step_distance in self.protocol[0]:  # run games with this difficulty
-
-            sample = np.argwhere(self.y == step_distance)
+            sample = np.argwhere(self.y == step_distance)  # FIXME
 
             for training_volume in self.protocol[1]:  # for this many episodes
-
                 for tau in range(training_volume):
-
                     for ind, env in enumerate(envs):  # each agent
-
                         self.initialize_to_state(env, self.X[np.random.choice(sample)])
 
                         agent = self.agents[ind]
@@ -112,7 +86,6 @@ class Training:
                         agent.resetEpisode()
 
                         for t in range(self.steps):  # for this many steps
-
                             agent.giveObservation(self.getState(env))
 
                             action = agent.act()
@@ -129,46 +102,5 @@ class Training:
                     episodes += 1
 
                     if episodes % self.save_every == 0:
-
                         for agent in self.agents:
-                            agent.saveModel()  # TODO
-
-
-
-
-
-
-
-
-
-
-
-
-env_name = 'Sokoban-v0'
-env = gym.make(env_name)
-
-ACTION_LOOKUP = env.unwrapped.get_action_lookup()
-print("Created environment: {}".format(env_name))
-
-
-
-for i_episode in range(1):#20
-    observation = env.reset()
-
-    for t in range(100):#100
-        env.render(mode='human')
-        action = env.action_space.sample()
-
-        # Sleep makes the actions visible for users
-        time.sleep(1)
-        observation, reward, done, info = env.step(action)
-
-        print(ACTION_LOOKUP[action], reward, done, info)
-        if done:
-            print("Episode finished after {} timesteps".format(t+1))
-            env.render()
-            break
-
-    env.close()
-
-time.sleep(10)
+                            agent.save()  # TODO

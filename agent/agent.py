@@ -1,6 +1,27 @@
 
 from abc import ABCMeta, abstractmethod
 import numpy as np
+import pickle
+
+
+class SaveInfo:
+    """
+    Holds information about where to save objects and logs, e.g. folder names,
+    """
+
+    def __init__(self, agent, special_name_tag=None):
+
+        self.agent = agent
+        self.filename = self.agent.name if special_name_tag is not None else \
+            self.agent.name + special_name_tag
+
+        self.dir = "..data/models"
+
+    def save(self):
+        pickle_out = open(self.dir + "/" + self.filename+".pickle", "wb")
+        pickle.dump(self.agent, pickle_out)
+        pickle_out.close()
+
 
 class Agent(metaclass=ABCMeta):
     """
@@ -8,6 +29,8 @@ class Agent(metaclass=ABCMeta):
     """
 
     def __init__(self):
+        self.name = None
+        self.save_info = None
         pass
 
     @abstractmethod
@@ -60,12 +83,8 @@ class Agent(metaclass=ABCMeta):
         """
         pass
 
-    @abstractmethod
-    def saveModel(self, filename, folder=None):  #  TODO should this be abstract? Folder saving conventions?
-        """
-        Save the model to the disk.
-        :param filename: Filename to save to
-        :param folder:
-        :return:
-        """
-        pass
+    def setSaveInfo(self, special_name_tag=None):
+        self.save_info = SaveInfo(self, special_name_tag=special_name_tag)
+
+    def save(self):
+        self.save_info.save()

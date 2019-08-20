@@ -136,7 +136,7 @@ class History:
         return np.mean(self.past_rewards[-window:])
 
 
-class SSRL(agent.Agent):
+class SSRL(agent.agent):
     """
     Implements Stochastic Synapse Reinforcement Learning
     """
@@ -155,6 +155,8 @@ class SSRL(agent.Agent):
         """
 
         super().__init__()
+        self.name = "SSRL" if as_in_paper else "SSRL_jakob_variant"
+
         self.layers = layers
         self.nnet_bias = nnet_bias
         self.nonlinearity = nonlinearity
@@ -166,8 +168,6 @@ class SSRL(agent.Agent):
         self.episode = Episode(self)
         self.params = None
         self.history = History()
-
-        self.name = 'SSRL' if as_in_paper else 'SSRL_Jakob_variant'
 
         if params is not None:  # check if dimensions are correct
 
