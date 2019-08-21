@@ -18,7 +18,7 @@ class SaveInfo:
         self.dir = "..data/models"
 
     def save(self):
-        pickle_out = open(self.dir + "/" + self.filename+".pickle", "wb")
+        pickle_out = open(self.dir + "/" + self.filename+".pkl", "wb")
         pickle.dump(self.agent, pickle_out)
         pickle_out.close()
 

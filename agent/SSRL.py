@@ -1,7 +1,7 @@
 
 import numpy as np
 
-import agent
+from agent.Agent import Agent
 from agent.FFNN import FFNN
 
 
@@ -136,13 +136,13 @@ class History:
         return np.mean(self.past_rewards[-window:])
 
 
-class SSRL(agent.agent):
+class SSRL(Agent):
     """
     Implements Stochastic Synapse Reinforcement Learning
     """
 
-    def __init__(self, layers, nnet_bias=True, nonlinearity=np.tanh, params=None, learning_rate=0.5, decay=None,
-                 as_in_paper=True):
+    def __init__(self, layers=(100, 4), nnet_bias=True, nonlinearity=np.tanh, params=None, learning_rate=0.5, decay=None,
+                 as_in_paper=True, special_update=False):
 
         """
         Provide information about the neural network architecture and set up basic data structures
@@ -162,11 +162,12 @@ class SSRL(agent.agent):
         self.nonlinearity = nonlinearity
         self.learning_rate = learning_rate
         self.decay = decay
+        self.special_update = special_update  # apply the update from the paper or a different one
 
         self.NNET = FFNN(self.nonlinearity, self.nnet_bias)
 
         self.episode = Episode(self)
-        self.params = None
+        self.params = params
         self.history = History()
 
         if params is not None:  # check if dimensions are correct
@@ -234,12 +235,13 @@ class SSRL(agent.agent):
 
             diff_mean = (weights - self.params.means[weight_layer])
 
-            self.episode.means_eligibility_traces_running_sum += layer_activations[weight_layer] * diff_mean
+            chi = np.abs(layer_activations[weight_layer]) if self.special_update else layer_activations[weight_layer]
 
-            self.episode.stds_eligibility_traces_running_sum += layer_activations[weight_layer] * \
-            (np.abs(diff_mean) - self.params.stds[weight_layer])
+            self.episode.means_eligibility_traces_running_sum += chi * diff_mean
 
-        return np.argmax(layer_activations[-1])
+            self.episode.stds_eligibility_traces_running_sum += chi * (np.abs(diff_mean) - self.params.stds[weight_layer])
+
+        return int(np.argmax(layer_activations[-1]) + 1)  # +1 because of the game code
 
     def giveReward(self, reward):
 

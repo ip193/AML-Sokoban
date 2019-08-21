@@ -4,7 +4,7 @@
 import numpy as np
 
 
-class FFNN():
+class FFNN:
     """
     Implementation of a simple feed-forward neural net
     """

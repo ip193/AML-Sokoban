@@ -26,7 +26,7 @@ def set_env_state(env, room_structures, states, idx):
     return env
 
 
-def solve_game(env, actions, distances, idx, render_mode='human'):
+def solve_game(env, actions, distances, idx, states, render_mode='human'):
     score = 0
     ACTION_LOOKUP = env.unwrapped.get_action_lookup()
     done = False
@@ -35,8 +35,11 @@ def solve_game(env, actions, distances, idx, render_mode='human'):
         env.render(mode=render_mode)
 
         action = actions[idx - t] + 1  # ignore 0 = no operation
+        a = states[idx - t]
+        print(a)
+        print(env.room_state)
 
-        time.sleep(1)  # FIXME
+        time.sleep(2)  # FIXME
         observation, reward, done, info = env.step(action)
         score += reward
         if render_mode == 'human':
@@ -45,6 +48,9 @@ def solve_game(env, actions, distances, idx, render_mode='human'):
             env.render(mode=render_mode)
             if render_mode == 'human':
                 print('👌', "Episode finished after {} timesteps".format(t + 1))
+                print("Final state: ")
+
+                # b = "hello"
             break
     if render_mode == 'human':
         print(score)
@@ -54,11 +60,6 @@ def solve_game(env, actions, distances, idx, render_mode='human'):
 
 
 if __name__ == '__main__':
-
-    jakob = True # FIXME
-
-    if jakob:
-        os.chdir("C:/Users/ASUS-N55S-Laptop/Desktop/AML Final Project/AML-Sokoban/data/")
 
     with gzip.open('../data/train/room_structures_train.pkl.gz', 'rb') as f:
         room_structures = pickle.load(f)
@@ -84,4 +85,4 @@ if __name__ == '__main__':
     print('start game at index', idx)
 
     set_env_state(env, room_structures, states, idx)
-    solve_game(env, actions, distances, idx)
+    solve_game(env, actions, distances, idx, states)
