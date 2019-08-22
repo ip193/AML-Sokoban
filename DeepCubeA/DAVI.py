@@ -18,10 +18,10 @@ def create_dataloader(batch_size, dataset_type='train'):
             self.data = []
             self.target = distances
 
-            for state, room_structure in zip(states, room_structures):
+            for state, room_structure, distance in zip(states, room_structures, distances):
                 wall_map = torch.from_numpy((state == 0).astype(int)).flatten()
                 target_map = torch.from_numpy((room_structure == 2).astype(int)).flatten()
-                boxes_map = torch.from_numpy((state == 4).astype(int)).flatten()
+                boxes_map = torch.from_numpy(((state == 3) | (state == 4)).astype(int)).flatten()
                 agent_map = torch.from_numpy((state == 5).astype(int)).flatten()
 
                 self.data.append(torch.cat((wall_map, target_map, boxes_map, agent_map), 0))
@@ -177,6 +177,7 @@ for epoch in tqdm(range(epochs), desc='Epoch'):
 
     hold_train_loss.append(np.mean(train_loss))
     hold_test_loss.append(np.mean(test_loss))
+    print(hold_train_loss[-1], hold_test_loss[-1])
 
 print(fx)
 print(tr_y)
