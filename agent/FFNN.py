@@ -25,7 +25,7 @@ class FFNN:
 
     def forward(self, input):
         """
-        Return the activations of each layer in the network (including input)
+        Return the activations of each layer in the network (including input) in a list
         :param input:
         :return:
         """
@@ -38,16 +38,18 @@ class FFNN:
 
         activation = input  # holds the activation of the previous layer
 
-        for i, w in enumerate(self.weights):
-
-            all_activations.append(activation)
+        for ind, w in enumerate(self.weights):
 
             if self.bias:
                 activation = np.append(activation, 1.)
 
+            all_activations.append(activation)
+
             preactivation = w @ activation
 
             activation = self.nl(preactivation)
+
+        all_activations.append(activation)
 
         return all_activations
 

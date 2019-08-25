@@ -10,7 +10,7 @@ for agent in agents:
 
 training = TrainingTools(agents)
 training.setData("example")
-training.setProtocol([1, 2, 3, 4], [1e4, 1e4, 1e4, 1e4])
+training.setProtocol([1, 2, 3, 4], [2, 2, 2, 2])
 
 training.runTraining()
 

@@ -52,8 +52,8 @@ class TrainingTools:
             else:
                 raise RuntimeError("Invalid file ending received: "+fileEnding)
 
-        self.states, self.room_structures, self.distances = f_open("states"), f_open("room_structures"), \
-                                                            f_open("distances")
+        self.states, self.room_structures, self.distances = np.asarray(f_open("states")), \
+                                np.asarray(f_open("room_structures")), np.asarray(f_open("distances"))
 
     def setProtocol(self, steps:list, training_volume:list):
         """
@@ -89,7 +89,7 @@ class TrainingTools:
 
     def getState(self, env):
         """
-        Access the room's state
+        Access the room's state (1: free space, 2: goal, 3: box on goal, 4: box free, 5: player)
         :param env:
         :return:
         """
@@ -110,32 +110,36 @@ class TrainingTools:
         # ACTION_LOOKUP = envs[0].unwrapped.get_action_lookup()
         episodes = 0
 
-        for step_distance in self.protocol[0]:  # run games with this difficulty
-            sample = self.states[np.where(self.distances == step_distance)]  # FIXME
+        for ind_steps, step_distance in enumerate(self.protocol[0]):  # run games with this difficulty
+            sample = np.where(self.distances == step_distance)[0]
 
-            for training_volume in self.protocol[1]:  # for this many episodes
-                print("Starting training at", training_volume, "steps from solution.")
-                for tau in tqdm(range(training_volume)):
-                    for ind, env in enumerate(envs):  # each agent
-                        self.initialize_to_state(env, np.random.choice(sample))
+            training_volume = self.protocol[1][ind_steps]
+            print("Starting training at", step_distance, "steps from solution.")
+            for tau in tqdm(range(training_volume)):  # for this many episodes
+                for ind_envs, env in enumerate(envs):  # each agent
+                    self.initialize_to_state(env, np.random.choice(sample))
 
-                        agent = self.agents[ind]
+                    agent = self.agents[ind_envs]
 
-                        agent.resetEpisode()
+                    agent.resetEpisode()
 
-                        for t in range(self.steps):  # for this many steps
-                            agent.giveObservation(self.getState(env))
-                            action = agent.act()
-                            observation, reward, done, info = env.step(action)
-                            agent.giveReward(reward)
+                    for t in range(self.steps):  # for this many steps
+                        agent.giveObservation(self.getState(env))
+                        action = agent.act()
+                        observation, reward, done, info = env.step(action)
+                        agent.giveReward(reward)
+                        agent.incrementTimeStep()
 
-                            if done:
-                                break
+                        if done:
+                            break
 
-                        agent.endOfEpisodeUpdate()
+                    agent.endOfEpisodeUpdate()
 
-                    episodes += 1
+                episodes += 1
 
-                    if episodes % self.save_every == 0:
-                        for agent in self.agents:
-                            agent.save()  # TODO
+                if episodes % self.save_every == 0:
+                    for agent in self.agents:
+                        agent.save()  # TODO
+
+        for agent in self.agents:
+            agent.save()

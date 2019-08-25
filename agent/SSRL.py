@@ -44,6 +44,19 @@ class Episode:
         """
         self.observation = observation.flatten()
 
+    def getObservation(self):
+        """
+        Get the observation at this timestep
+        :return:
+        """
+        return self.observation
+
+    def callForward(self):
+        """
+        Wrap NNET.forward() so all observation handling goes through episode object
+        :return:
+        """
+        return self.agent.NNET.forward(self.getObservation())
 
 class Params:
     """
@@ -115,7 +128,6 @@ class Params:
             self.stds.append(np.random.rand(size, self.layers[i-1] + bias)*(random_bounds[1][1] - random_bounds[1][0])
                               + random_bounds[1][0])
 
-
 class History:
     """
     Holds information spanning multiple episodes, e.g. average past reward.
@@ -131,7 +143,14 @@ class History:
         :return:
         """
 
-        window = max(min_window, int(len(self.past_rewards)*proportion))
+        l = len(self.past_rewards)
+        if l == 0:
+            return 0
+
+        if l < min_window:
+            return np.mean(self.past_rewards)
+
+        window = max(min_window, int(l*proportion))
 
         return np.mean(self.past_rewards[-window:])
 
@@ -197,6 +216,7 @@ class SSRL(Agent):
     def incrementTimeStep(self):
 
         self.episode.timeStep += 1
+        self.episode.observation = None
 
     def giveObservation(self, observation):
 
@@ -209,6 +229,10 @@ class SSRL(Agent):
         and return NNET forward pass.
         :return: Action to take
         """
+
+        observation = self.episode.getObservation()
+        if observation is None:
+            raise RuntimeError("Called act on None observation")
 
         action_weights = []
 
@@ -225,7 +249,9 @@ class SSRL(Agent):
 
             action_weights.append(layer_weights)
 
-        layer_activations = self.NNET.setWeights(action_weights)
+        self.NNET.setWeights(action_weights)
+        self.episode.setObservation(observation)
+        layer_activations = self.episode.callForward()
 
         for weight_layer, weights in enumerate(action_weights):
 
@@ -237,9 +263,9 @@ class SSRL(Agent):
 
             chi = np.abs(layer_activations[weight_layer]) if self.special_update else layer_activations[weight_layer]
 
-            self.episode.means_eligibility_traces_running_sum += chi * diff_mean
+            self.episode.means_eligibility_traces_running_sum[weight_layer] += chi * diff_mean
 
-            self.episode.stds_eligibility_traces_running_sum += chi * (np.abs(diff_mean) - self.params.stds[weight_layer])
+            self.episode.stds_eligibility_traces_running_sum[weight_layer] += chi * (np.abs(diff_mean) - self.params.stds[weight_layer])
 
         return int(np.argmax(layer_activations[-1]) + 1)  # +1 because of the game code
 
@@ -264,11 +290,11 @@ class SSRL(Agent):
         #  Apply the parameter update rules
         for ind, m in enumerate(self.params.means):
 
-            m += factor*self.episode.means_eligibility_traces_running_sum
+            m += factor*self.episode.means_eligibility_traces_running_sum[ind]
 
         for ind, s in enumerate(self.params.stds):
 
-            s += factor*self.episode.stds_eligibility_traces_running_sum
+            s += factor*self.episode.stds_eligibility_traces_running_sum[ind]
 
             self.params.stds[ind] = np.clip(s, 0.05, 1)
 
