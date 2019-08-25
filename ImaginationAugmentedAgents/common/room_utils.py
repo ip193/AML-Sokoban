@@ -220,7 +220,7 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
     global explored_states, num_boxes, best_room_score, best_room, best_box_mapping
 
     ttl -= 1
-    if ttl <= 0 or len(explored_states) >= 10000:  # 300000
+    if ttl <= 0 or len(explored_states) >= 30000:  # 300000 -> 30000 only explore 10% of steps compared to original (as maximum)
         return
 
     state_tohash = marshal.dumps(room_state)
@@ -253,6 +253,7 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
             if last_pull_next != last_pull:
                 box_swaps_next += 1
 
+            # recursion is the slowest part of the algorithm
             depth_first_search(room_state_next, room_structure,
                                box_mapping_next, box_swaps_next,
                                last_pull, ttl)
