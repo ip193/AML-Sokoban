@@ -57,7 +57,6 @@ class SokobanEnv(gym.Env):
 
     def step(self, action, observation_mode=None):
         assert action in ACTION_LOOKUP
-        assert observation_mode in ['rgb_array', 'tiny_rgb_array']
         if observation_mode is None:
             observation_mode = self.render_mode
 
