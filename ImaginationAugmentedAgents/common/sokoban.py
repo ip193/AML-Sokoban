@@ -7,10 +7,10 @@ gym_sokoban  # PyCharm hack
 
 
 class Sokoban:
-    def __init__(self, dim_room=(7, 7), max_steps=120, num_boxes=2, shape=(3, 7, 7), render_mode='tiny_rgb_array'):
+    def __init__(self, dim_room=(7, 7), max_steps=120, num_boxes=2, shape=(3, 7, 7), render_mode='tiny_rgb_array', explored_states_max=300000):
         self.render_mode = render_mode
 
-        self.env = SokobanEnv(dim_room=dim_room, max_steps=max_steps, num_boxes=num_boxes, render_mode=render_mode)
+        self.env = SokobanEnv(dim_room=dim_room, max_steps=max_steps, num_boxes=num_boxes, render_mode=render_mode, explored_states_max=explored_states_max)
         self.done = False
 
         self.action_space = spaces.Discrete(4)

@@ -19,7 +19,8 @@ class SokobanEnv(gym.Env):
                  num_boxes=4,
                  num_gen_steps=None,
                  reset=True,
-                 render_mode='tiny_rgb_array'):
+                 render_mode='tiny_rgb_array',
+                 explored_states_max=300000):
 
         # General Configuration
         self.dim_room = dim_room
@@ -46,6 +47,7 @@ class SokobanEnv(gym.Env):
         self.observation_space = Box(low=0, high=255, shape=(screen_height, screen_width, 3), dtype=np.uint8)
 
         self.render_mode = render_mode
+        self.explored_states_max = explored_states_max
 
         if reset:
             # Initialize Room
@@ -211,7 +213,8 @@ class SokobanEnv(gym.Env):
                 dim=self.dim_room,
                 num_steps=self.num_gen_steps,
                 num_boxes=self.num_boxes,
-                second_player=second_player
+                second_player=second_player,
+                explored_states_max=self.explored_states_max
             )
         except (RuntimeError, RuntimeWarning) as e:
             print("[SOKOBAN] Runtime Error/Warning: {}".format(e))

@@ -4,7 +4,7 @@ import random
 import numpy as np
 
 
-def generate_room(dim=(13, 13), p_change_directions=0.35, num_steps=25, num_boxes=3, tries=4, second_player=False):
+def generate_room(dim=(13, 13), p_change_directions=0.35, num_steps=25, num_boxes=3, tries=4, second_player=False, explored_states_max=300000):
     """
     Generates a Sokoban room, represented by an integer matrix. The elements are encoded as follows:
     wall = 0
@@ -36,7 +36,7 @@ def generate_room(dim=(13, 13), p_change_directions=0.35, num_steps=25, num_boxe
         room_state = room.copy()
         room_state[room_state == 2] = 4
 
-        room_state, score, box_mapping = reverse_playing(room_state, room_structure)
+        room_state, score, box_mapping = reverse_playing(room_state, room_structure, explored_states_max)
         room_state[room_state == 3] = 4
 
         if score > 0:
@@ -175,7 +175,7 @@ best_room = None
 best_box_mapping = None
 
 
-def reverse_playing(room_state, room_structure, search_depth=100):
+def reverse_playing(room_state, room_structure, explored_states_max, search_depth=100):
     """
     This function plays Sokoban reverse in a way, such that the player can
     move and pull boxes.
@@ -199,16 +199,16 @@ def reverse_playing(room_state, room_structure, search_depth=100):
     explored_states = set()
     best_room_score = -1
     best_box_mapping = box_mapping
-    depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, last_pull=(-1, -1), ttl=300)
+    depth_first_search(room_state, room_structure, box_mapping, explored_states_max, box_swaps=0, last_pull=(-1, -1), ttl=300)
 
     return best_room, best_room_score, best_box_mapping
 
 
-def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, last_pull=(-1, -1), ttl=300):
+def depth_first_search(room_state, room_structure, box_mapping, explored_states_max, box_swaps=0, last_pull=(-1, -1), ttl=300):
     """
     Searches through all possible states of the room.
     This is a recursive function, which stops if the tll is reduced to 0 or
-    over 1.000.000 states have been explored.
+    over1.000.000 states have been explored.
     :param room_state:
     :param room_structure:
     :param box_mapping:
@@ -220,7 +220,7 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
     global explored_states, num_boxes, best_room_score, best_room, best_box_mapping
 
     ttl -= 1
-    if ttl <= 0 or len(explored_states) >= 30000:  # 300000 -> 30000 only explore 10% of steps compared to original (as maximum)
+    if ttl <= 0 or len(explored_states) >= explored_states_max:
         return
 
     state_tohash = marshal.dumps(room_state)
@@ -255,8 +255,8 @@ def depth_first_search(room_state, room_structure, box_mapping, box_swaps=0, las
 
             # recursion is the slowest part of the algorithm
             depth_first_search(room_state_next, room_structure,
-                               box_mapping_next, box_swaps_next,
-                               last_pull, ttl)
+                               box_mapping_next, explored_states_max,
+                               box_swaps_next, last_pull, ttl)
 
 
 def reverse_move(room_state, room_structure, box_mapping, last_pull, action):
