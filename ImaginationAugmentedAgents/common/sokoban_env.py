@@ -18,7 +18,8 @@ class SokobanEnv(gym.Env):
                  max_steps=120,
                  num_boxes=4,
                  num_gen_steps=None,
-                 reset=True):
+                 reset=True,
+                 render_mode='tiny_rgb_array'):
 
         # General Configuration
         self.dim_room = dim_room
@@ -44,6 +45,8 @@ class SokobanEnv(gym.Env):
         screen_height, screen_width = (dim_room[0] * 16, dim_room[1] * 16)
         self.observation_space = Box(low=0, high=255, shape=(screen_height, screen_width, 3), dtype=np.uint8)
 
+        self.render_mode = render_mode
+
         if reset:
             # Initialize Room
             _ = self.reset()
@@ -52,9 +55,11 @@ class SokobanEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def step(self, action, observation_mode='tiny_rgb_array'):
+    def step(self, action, observation_mode=None):
         assert action in ACTION_LOOKUP
         assert observation_mode in ['rgb_array', 'tiny_rgb_array']
+        if observation_mode is None:
+            observation_mode = self.render_mode
 
         self.num_env_steps += 1
 
@@ -198,7 +203,10 @@ class SokobanEnv(gym.Env):
     def _check_if_maxsteps(self):
         return (self.max_steps == self.num_env_steps)
 
-    def reset(self, second_player=False, render_mode='tiny_rgb_array'):
+    def reset(self, second_player=False, render_mode=None):
+        if render_mode is None:
+            render_mode = self.render_mode
+
         try:
             self.room_fixed, self.room_state, self.box_mapping = generate_room(
                 dim=self.dim_room,
