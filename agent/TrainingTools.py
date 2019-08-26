@@ -7,6 +7,8 @@ import gzip
 import os
 from tqdm import tqdm
 
+from data.generate_data import get_box_mapping
+
 
 class TrainingTools:
     """
@@ -67,25 +69,31 @@ class TrainingTools:
 
     def initialize_to_state(self, env, index):
         """
-        Set the game to a desired state.
+        Set the game to a desired state. This is basically a re-implementation of env.reset()
 
         :param env: Sokoban Environment whose state should be altered
         :param index: Index in training database for state and room_structure
         :return:
         """
 
-        env.reset()
+        #  env.reset()
         env.room_fixed = self.room_structures[index]
         env.room_state = self.states[index]
+        env.box_mapping = get_box_mapping(self.room_structures[index])
 
         old_4 = env.room_state == 4
         old_3 = env.room_state == 3
 
-        env.room_state[old_4] = 3  # FIXME
+        env.room_state[old_4] = 3  # FIXME Games are currently saved differently than how they are in the game
         env.room_state[old_3] = 4  # FIXME
 
         player_position = np.where(env.room_state == 5)
         env.player_position = np.asarray([player_position[0][0], player_position[1][0]])
+
+        env.num_env_steps = 0
+        env.reward_last = 0
+        env.boxes_on_target = int(np.sum(old_4))
+
 
     def getState(self, env):
         """
@@ -115,7 +123,7 @@ class TrainingTools:
 
             training_volume = self.protocol[1][ind_steps]
             print("Starting training at", step_distance, "steps from solution.")
-            for tau in tqdm(range(training_volume)):  # for this many episodes
+            for tau in range(training_volume):  # for this many episodes FIXME add tqdm
                 for ind_envs, env in enumerate(envs):  # each agent
                     self.initialize_to_state(env, np.random.choice(sample))
 
