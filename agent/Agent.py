@@ -3,6 +3,8 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 import pickle
 
+import os
+
 
 class SaveInfo:
     """
@@ -12,13 +14,13 @@ class SaveInfo:
     def __init__(self, agent, special_name_tag=None):
 
         self.agent = agent
-        self.filename = self.agent.name if special_name_tag is not None else \
-            self.agent.name + special_name_tag
+        self.filename = self.agent.name if special_name_tag is None else \
+            self.agent.name + "_" + special_name_tag
 
-        self.dir = "..data/models"
+        self.dir = "../data/models"
 
     def save(self):
-        pickle_out = open(self.dir + "/" + self.filename+".pkl", "wb")
+        pickle_out = open(self.dir + "/" + self.filename+".pkl", "wb+")
         pickle.dump(self.agent, pickle_out)
         pickle_out.close()
 

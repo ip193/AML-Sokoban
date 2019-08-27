@@ -112,18 +112,21 @@ class TrainingTools:
 
         env_name = 'Sokoban-v0'
         envs = []
-        for agent in self.agents:
-            envs.append(gym.make(env_name))
 
-        # ACTION_LOOKUP = envs[0].unwrapped.get_action_lookup()
         episodes = 0
 
         for ind_steps, step_distance in enumerate(self.protocol[0]):  # run games with this difficulty
             sample = np.where(self.distances == step_distance)[0]
 
             training_volume = self.protocol[1][ind_steps]
+
+            envs.clear()
+            for agent in self.agents:
+                envs.append(gym.make(env_name))
+
             print("Starting training at", step_distance, "steps from solution.")
-            for tau in tqdm(range(training_volume)):  # for this many episodes
+            # for tau in tqdm(range(training_volume)):  # for this many episodes
+            for tau in range(training_volume):
                 for ind_envs, env in enumerate(envs):  # each agent
                     self.initialize_to_state(env, np.random.choice(sample))
 
@@ -131,7 +134,7 @@ class TrainingTools:
 
                     agent.resetEpisode()
 
-                    for t in range(self.steps):  # for this many steps
+                    for t in range(step_distance*5):  # for this many steps
                         agent.giveObservation(self.getState(env))
                         action = agent.act()
                         observation, reward, done, info = env.step(action)
@@ -149,5 +152,6 @@ class TrainingTools:
                     for agent in self.agents:
                         agent.save()  # TODO
 
-        for agent in self.agents:
-            agent.save()
+            for agent in self.agents:
+                agent.save()
+
