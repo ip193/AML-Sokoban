@@ -123,7 +123,7 @@ class TrainingTools:
 
             training_volume = self.protocol[1][ind_steps]
             print("Starting training at", step_distance, "steps from solution.")
-            for tau in range(training_volume):  # for this many episodes FIXME add tqdm
+            for tau in tqdm(range(training_volume)):  # for this many episodes
                 for ind_envs, env in enumerate(envs):  # each agent
                     self.initialize_to_state(env, np.random.choice(sample))
 

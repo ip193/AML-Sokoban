@@ -22,6 +22,10 @@ class SaveInfo:
         pickle.dump(self.agent, pickle_out)
         pickle_out.close()
 
+    def load(self):
+        with open(self.dir + "/" + self.filename+".pkl", "rb") as pickle_in:
+            return pickle.load(pickle_in)
+
 
 class Agent(metaclass=ABCMeta):
     """
@@ -88,3 +92,6 @@ class Agent(metaclass=ABCMeta):
 
     def save(self):
         self.save_info.save()
+
+    def load(self):
+        return self.save_info.load()

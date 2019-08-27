@@ -222,6 +222,16 @@ class SSRL(Agent):
 
         self.episode.setObservation(observation)
 
+    def sample_normal(self, mean_cov:np.ndarray):
+        """
+        Apply this along axis for O(n) implementation of diagonal covariance normal distribution.
+        Original (np.random.multivariate_normal(mean, cov).reshape(self.params.means[ind].shape) ) was too slow
+        :param mean_cov:
+        :return:
+        """
+
+        return np.random.normal(mean_cov[0], mean_cov[1])
+
     def act(self):
 
         """
@@ -241,11 +251,10 @@ class SSRL(Agent):
                 # weight matrices in NNET + 1 = number of layers
                 continue
 
-            mean = self.params.means[ind].flatten()
-            cov = np.diag(self.params.stds[ind].flatten())
+            mean_cov = np.concatenate((self.params.means[ind].reshape(1, -1),
+                                       self.params.stds[ind].reshape(1, -1)), 0)
 
-            layer_weights = np.random.multivariate_normal(mean, cov).reshape(self.params.means[ind].shape)
-            #  sample the multivariate distribution and reshape it for the neural network
+            layer_weights = np.apply_along_axis(self.sample_normal, 0, mean_cov).reshape(self.params.means[ind].shape)
 
             action_weights.append(layer_weights)
 
