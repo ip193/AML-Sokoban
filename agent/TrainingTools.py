@@ -81,12 +81,6 @@ class TrainingTools:
         env.room_state = self.states[index]
         env.box_mapping = get_box_mapping(self.room_structures[index])
 
-        old_4 = env.room_state == 4
-        old_3 = env.room_state == 3
-
-        env.room_state[old_4] = 3  # FIXME Games are currently saved differently than how they are in the game
-        env.room_state[old_3] = 4  # FIXME
-
         player_position = np.where(env.room_state == 5)
         env.player_position = np.asarray([player_position[0][0], player_position[1][0]])
 

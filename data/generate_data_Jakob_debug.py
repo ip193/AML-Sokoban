@@ -13,10 +13,7 @@ from gym_sokoban.envs import SokobanEnv
 from gym_sokoban.envs.room_utils import room_topology_generation, box_displacement_score, ACTION_LOOKUP, reverse_move
 from tqdm import tqdm
 
-
-def generate_env():  # FIXME: Bemerkung an Pascal: Die folgenden drei Funktionen waren in der Datei 'example_fake_solved_game'
-    # FIXME: implementiert. Ich habe sie in diese Datei verlegt, um Konflikte zwischen Versionen zu vermeiden und damit alle relevanten
-    # FIXME: Funktionen in einer Datei gebuendelt sind.
+def generate_env():
     return SokobanEnv(num_boxes=3, max_steps=200, reset=False)
 
 
@@ -58,7 +55,6 @@ def solve_game(env, actions, distances, idx, render_mode='human'):
     env.close()
 
     return done
-
 
 def create_empty_room(env):
     return room_topology_generation(dim=env.dim_room, num_steps=env.num_gen_steps)
@@ -268,7 +264,9 @@ if __name__ == '__main__':
     env = SokobanEnv(dim_room=(10, 10), max_steps=200, num_boxes=3, num_gen_steps=None, reset=False)
 
     states, distances, actions, room_structures = [], [], [], []
+    weird_states = []
     for _ in tqdm(range(1000)):
+        # for _ in range(1000):
 
         room_structure = None
         score = 0
@@ -290,23 +288,56 @@ if __name__ == '__main__':
 
         if solution_works([room_structure] * len(best_old_room_states), best_old_room_states, actions_solution, best_distances, len(best_old_room_states) - 1):
             for state, distance, action in zip(best_old_room_states, best_distances, actions_solution):
+
+                old_4 = state == 4
+                old_3 = state == 3
+
                 states.append(state)
                 distances.append(distance)
                 actions.append(action)
                 room_structures.append(room_structure)
+
+                state[old_4] = 3  # FIXME Games are currently shown differently than how they are in the game
+                state[old_3] = 4  # FIXME
+
+                # FIXME debug below
+                num_boxes_on_target = int(np.sum(state == 3))
+                total_boxes = int(np.sum((state == 3) | (state == 4)))
+                if True is False and distance == 1 and (num_boxes_on_target != 2 or total_boxes != 3):  # enforce the right number of boxes
+                    weird_states.append((state, distance, room_structure))  # error here
+                    pass
         else:
             print('🚨', 'could not solve a puzzle... skipping...')
 
     print('len(states)', len(states))
 
-    # TODO remove duplicate state with bigger distance
-    hashed_x = []
-    for x in tqdm(states.copy()):
+    # TODO remove duplicate state with bigger distance (Done: Jakob)
+
+    states, room_structures, distances = np.asarray(states), np.asarray(room_structures), np.asarray(distances)
+
+    hashed_x = [[], []]  # [hash], [index in database] for states we want to keep
+    hash_ind = 0
+    for x in tqdm(states):
         x_hash = hash(marshal.dumps(x))
-        if x_hash in hashed_x:
-            print("! Duplicate in Dataset!!!")
-        else:
-            hashed_x.append(x_hash)
+        try:
+            duplicate = hashed_x[0].index(x_hash)  # attempt to find a duplicate
+            duplicate_ind = hashed_x[1][duplicate]
+
+            keep = duplicate_ind if distances[duplicate_ind] <= distances[hash_ind] else hash_ind
+
+            hashed_x[1].append(keep)
+
+        except ValueError:  # no duplicate found
+
+            hashed_x[1].append(hash_ind)
+
+        hashed_x[0].append(x_hash)
+        hash_ind += 1
+
+    keep = np.asarray(hashed_x[1])
+
+    states, room_structures, distances = states[keep], room_structures[keep], distances[keep]
+
 
     # save data
     timestamp = time.time()
