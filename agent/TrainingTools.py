@@ -42,14 +42,15 @@ class TrainingTools:
         :param fileEnding: File ending (including leading period '.')
         :return:
         """
-
+        self.data_filename = filename
+        self.data_fileEnding = fileEnding
         def f_open(name):
             if fileEnding == ".pkl.gz":
-                with gzip.open('../data/train/' + name + '_' + filename + fileEnding, 'rb') as f:
+                with gzip.open('../data/train/' + name + '_' + self.data_filename + self.data_fileEnding, 'rb') as f:
                     return pickle.load(f)
 
             if fileEnding == ".npy":
-                return np.load('../data/train/' + name + '_' + filename + fileEnding)
+                return np.load('../data/train/' + name + '_' + self.data_filename + self.data_fileEnding)
 
             else:
                 raise RuntimeError("Invalid file ending received: "+fileEnding)
@@ -86,7 +87,7 @@ class TrainingTools:
 
         env.num_env_steps = 0
         env.reward_last = 0
-        env.boxes_on_target = int(np.sum(old_4))
+        env.boxes_on_target = int(np.sum(env.room_state == 3))
 
 
     def getState(self, env):
@@ -98,9 +99,10 @@ class TrainingTools:
 
         return env.room_state
 
-    def runTraining(self):
+    def runTraining(self, reload_every=None):
         """
         Execute the entire training process.
+        :param reload: If not None, reload training data after this many games (allows for parallel data generation and loading)
         :return:
         """
 
@@ -119,13 +121,12 @@ class TrainingTools:
                 envs.append(gym.make(env_name))
 
             print("Starting training at", step_distance, "steps from solution.")
-            # for tau in tqdm(range(training_volume)):  # for this many episodes
-            for tau in range(training_volume):
+            for tau in tqdm(range(training_volume)):  # for this many episodes
+                # for tau in range(training_volume):
                 for ind_envs, env in enumerate(envs):  # each agent
                     self.initialize_to_state(env, np.random.choice(sample))
 
                     agent = self.agents[ind_envs]
-
                     agent.resetEpisode()
 
                     for t in range(step_distance*5):  # for this many steps
@@ -143,9 +144,15 @@ class TrainingTools:
                 episodes += 1
 
                 if episodes % self.save_every == 0:
+                    print("Saving agents.")
                     for agent in self.agents:
                         agent.save()  # TODO
+                if reload_every is not None and episodes % reload_every == 0:
+                    print("Reloading data.")
+                    self.setData(self.data_filename, self.data_fileEnding)
+                    sample = np.where(self.distances == step_distance)[0]
 
+            print("Saving agents.")
             for agent in self.agents:
                 agent.save()
 

@@ -260,13 +260,80 @@ def solution_works(room_structures, room_states, actions, distances, idx):
     return solve_game(env, actions, distances, idx, render_mode='tiny_rgb_array')
 
 
+
+def drop_duplicate_states(states:list, room_structures:list, distances:list, actions:list):
+    """
+    Checks for duplicate states and chooses only those with the smallest provided distance.
+    :return:
+    """
+    states, room_structures, distances, actions = np.asarray(states), np.asarray(room_structures)\
+        , np.asarray(distances), np.asarray(actions)
+
+    hashed_x = [[], []]  # [hash], [index in database] for states we want to keep
+    hash_ind = 0
+    for x in tqdm(states):
+        x_hash = hash(marshal.dumps(x))
+        try:
+            duplicate = hashed_x[0].index(x_hash)  # attempt to find a duplicate
+            duplicate_ind = hashed_x[1][duplicate]
+
+            keep = duplicate_ind if distances[duplicate_ind] <= distances[hash_ind] else hash_ind
+
+            hashed_x[1].append(keep)
+
+        except ValueError:  # no duplicate found
+
+            hashed_x[1].append(hash_ind)
+
+        hashed_x[0].append(x_hash)
+        hash_ind += 1
+
+    keep = np.asarray(hashed_x[1])
+
+    states, room_structures, distances, actions = states[keep], room_structures[keep], distances[keep], actions[keep]
+
+    return list(states), list(room_structures), list(distances), list(actions)
+
+
+def evaluate_and_save(states, room_structures, distances, actions, outfile_name):
+    """
+    Check for duplicates and save all games found so far (allows for generation and storage of games "in parallel")
+    :return:
+    """
+
+    states, room_structures, distances, actions = drop_duplicate_states(states, room_structures, distances, actions)
+
+    # save data
+    print("Saving:", outfile_name)
+
+    with gzip.open(f'./train/states_{outfile_name}.pkl.gz', 'wb') as f:
+        pickle.dump(states, f, pickle.HIGHEST_PROTOCOL)
+
+    with gzip.open(f'./train/distances_{outfile_name}.pkl.gz', 'wb') as f:
+        pickle.dump(distances, f, pickle.HIGHEST_PROTOCOL)
+
+    with gzip.open(f'./train/actions_{outfile_name}.pkl.gz', 'wb') as f:
+        pickle.dump(actions, f, pickle.HIGHEST_PROTOCOL)
+
+    with gzip.open(f'./train/room_structures_{outfile_name}.pkl.gz', 'wb') as f:
+        pickle.dump(room_structures, f, pickle.HIGHEST_PROTOCOL)
+
+    return states, room_structures, distances, actions
+
+
+
 if __name__ == '__main__':
     env = SokobanEnv(dim_room=(10, 10), max_steps=200, num_boxes=3, num_gen_steps=None, reset=False)
 
     states, distances, actions, room_structures = [], [], [], []
-    weird_states = []
-    for _ in tqdm(range(1000)):
-        # for _ in range(1000):
+    weird_states = []  # used for debugging
+    timestamp = time.time()
+    outfile_name = timestamp  # FIXME: Change this to add to existing database
+    n_training_data = int(1e4)  # generate this many data
+    save_every = 40  # save after this many games have been added
+
+    for game_index in tqdm(range(n_training_data)):
+        # for game_index in range(n_training_data):
 
         room_structure = None
         score = 0
@@ -297,59 +364,25 @@ if __name__ == '__main__':
                 actions.append(action)
                 room_structures.append(room_structure)
 
-                state[old_4] = 3  # FIXME Games are currently shown differently than how they are in the game
+                state[old_4] = 3  # FIXME Here we swap the values to be like the game
                 state[old_3] = 4  # FIXME
 
-                # FIXME debug below
-                num_boxes_on_target = int(np.sum(state == 3))
-                total_boxes = int(np.sum((state == 3) | (state == 4)))
-                if True is False and distance == 1 and (num_boxes_on_target != 2 or total_boxes != 3):  # enforce the right number of boxes
-                    weird_states.append((state, distance, room_structure))  # error here
-                    pass
+                # # FIXME debugging below
+                # num_boxes_on_target = int(np.sum(state == 3))
+                # total_boxes = int(np.sum((state == 3) | (state == 4)))
+                # if distance == 1 and (num_boxes_on_target != 2 or total_boxes != 3):  # enforce the right number of boxes
+                #     weird_states.append((state, distance, room_structure))  # error here
+                #     pass
         else:
             print('🚨', 'could not solve a puzzle... skipping...')
+
+        if (game_index + 1) % save_every == 0:
+
+            states, room_structures, distances, actions = evaluate_and_save(states, room_structures, distances, actions,
+                                                                            outfile_name)
 
     print('len(states)', len(states))
 
     # TODO remove duplicate state with bigger distance (Done: Jakob)
 
-    states, room_structures, distances = np.asarray(states), np.asarray(room_structures), np.asarray(distances)
-
-    hashed_x = [[], []]  # [hash], [index in database] for states we want to keep
-    hash_ind = 0
-    for x in tqdm(states):
-        x_hash = hash(marshal.dumps(x))
-        try:
-            duplicate = hashed_x[0].index(x_hash)  # attempt to find a duplicate
-            duplicate_ind = hashed_x[1][duplicate]
-
-            keep = duplicate_ind if distances[duplicate_ind] <= distances[hash_ind] else hash_ind
-
-            hashed_x[1].append(keep)
-
-        except ValueError:  # no duplicate found
-
-            hashed_x[1].append(hash_ind)
-
-        hashed_x[0].append(x_hash)
-        hash_ind += 1
-
-    keep = np.asarray(hashed_x[1])
-
-    states, room_structures, distances = states[keep], room_structures[keep], distances[keep]
-
-
-    # save data
-    timestamp = time.time()
-    print(timestamp)
-    with gzip.open(f'states_{timestamp}.pkl.gz', 'wb') as f:
-        pickle.dump(states, f, pickle.HIGHEST_PROTOCOL)
-
-    with gzip.open(f'distances_{timestamp}.pkl.gz', 'wb') as f:
-        pickle.dump(distances, f, pickle.HIGHEST_PROTOCOL)
-
-    with gzip.open(f'actions_{timestamp}.pkl.gz', 'wb') as f:
-        pickle.dump(actions, f, pickle.HIGHEST_PROTOCOL)
-
-    with gzip.open(f'room_structures_{timestamp}.pkl.gz', 'wb') as f:
-        pickle.dump(room_structures, f, pickle.HIGHEST_PROTOCOL)
+    evaluate_and_save(states, room_structures, distances, actions, outfile_name)
