@@ -121,8 +121,8 @@ class TrainingTools:
                 envs.append(gym.make(env_name))
 
             print("Starting training at", step_distance, "steps from solution.")
-            for tau in tqdm(range(training_volume)):  # for this many episodes
-                # for tau in range(training_volume):
+                # for tau in tqdm(range(training_volume)):  # for this many episodes
+            for tau in range(training_volume):
                 for ind_envs, env in enumerate(envs):  # each agent
                     self.initialize_to_state(env, np.random.choice(sample))
 

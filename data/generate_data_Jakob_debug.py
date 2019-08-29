@@ -320,15 +320,42 @@ def evaluate_and_save(states, room_structures, distances, actions, outfile_name)
 
     return states, room_structures, distances, actions
 
+def load_data(infile:str):
+    """
+    Load data from files
+    :param infile: Filename
+    :return:
+    """
+
+    with gzip.open(f'./train/states_{infile}.pkl.gz', 'rb') as f:
+        states = pickle.load(f)
+
+    with gzip.open(f'./train/distances_{infile}.pkl.gz', 'rb') as f:
+        distances = pickle.load(f)
+
+    with gzip.open(f'./train/actions_{infile}.pkl.gz', 'rb') as f:
+        actions = pickle.load(f)
+
+    with gzip.open(f'./train/room_structures_{infile}.pkl.gz', 'rb') as f:
+        room_structures = pickle.load(f)
+
+    return states, room_structures, distances, actions
 
 
 if __name__ == '__main__':
     env = SokobanEnv(dim_room=(10, 10), max_steps=200, num_boxes=3, num_gen_steps=None, reset=False)
 
-    states, distances, actions, room_structures = [], [], [], []
+    states, room_structures, distances, actions = [], [], [], []
     weird_states = []  # used for debugging
     timestamp = time.time()
-    outfile_name = timestamp  # FIXME: Change this to add to existing database
+    outfile_name = timestamp
+
+    infile = "1567086188.896406" # FIXME: Change this to add to existing database
+
+    if infile is not None:
+        outfile_name = infile
+        states, room_structures, distances, actions = load_data(infile)
+
     n_training_data = int(1e4)  # generate this many data
     save_every = 40  # save after this many games have been added
 
