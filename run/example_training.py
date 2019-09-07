@@ -15,7 +15,7 @@ for ind, agent in enumerate(agents):
         pass
 
 training = TrainingTools(agents, save_every=200)
-database = "1567086188.896406"
+database = "main"
 training.setData(database)
 training.setProtocol([1], [5e4])    # [1, 2, 3, 4], [2000, 2000, 2000, 2000])
 

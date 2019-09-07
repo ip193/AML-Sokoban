@@ -121,17 +121,23 @@ class TrainingTools:
                 envs.append(gym.make(env_name))
 
             print("Starting training at", step_distance, "steps from solution.")
-                # for tau in tqdm(range(training_volume)):  # for this many episodes
+            # for tau in tqdm(range(training_volume)):  # for this many episodes
             for tau in range(training_volume):
                 for ind_envs, env in enumerate(envs):  # each agent
-                    self.initialize_to_state(env, np.random.choice(sample))
+                    start = np.random.choice(sample)
+                    self.initialize_to_state(env, start)
 
                     agent = self.agents[ind_envs]
                     agent.resetEpisode()
 
+                    #FIXME debug
+                    agent.start = self.states[start]
+                    agent.actions = []  # holds actions taken this game
+
                     for t in range(step_distance*5):  # for this many steps
                         agent.giveObservation(self.getState(env))
                         action = agent.act()
+                        agent.actions.append(action) # FIXME
                         observation, reward, done, info = env.step(action)
                         agent.giveReward(reward)
                         agent.incrementTimeStep()

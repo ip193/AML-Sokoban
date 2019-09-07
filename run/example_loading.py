@@ -15,7 +15,7 @@ load_agent = load_agent.load()
 
 kernel = sklearn.metrics.pairwise.polynomial_kernel
 
-# regr = LinearRegression()
+#regr = LinearRegression()
 regr = krr.KernelRidge(kernel="rbf", alpha=0.3, gamma=300)
 
 y = np.asarray(load_agent.history.past_rewards).reshape(-1)
@@ -23,13 +23,13 @@ X = np.arange(y.size).reshape(-1, 1)
 
 data_length = y.size
 
-s = np.arange(0, X.size, 5)
-y, X = y[s], X[s]
+s = np.arange(3000, 6000)
+y_, X_ = y[s], X[s]
 
-regr.fit(X, y)
+regr.fit(X_, y_)
 
 line_points = np.arange(0, data_length, 200).reshape(-1, 1)
 
 plt.plot(line_points, regr.predict(line_points))
-#plt.scatter(line_points, y[line_points])
+plt.scatter(line_points, y[line_points])
 plt.show()

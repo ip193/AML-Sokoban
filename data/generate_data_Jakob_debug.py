@@ -347,10 +347,9 @@ if __name__ == '__main__':
 
     states, room_structures, distances, actions = [], [], [], []
     weird_states = []  # used for debugging
-    timestamp = time.time()
-    outfile_name = timestamp
 
-    infile = "1567086188.896406" # FIXME: Change this to add to existing database
+    infile = None # FIXME: Change this to add to existing database
+    outfile_name = "main"
 
     if infile is not None:
         outfile_name = infile

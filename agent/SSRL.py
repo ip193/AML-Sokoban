@@ -292,6 +292,9 @@ class SSRL(Agent):
         avg = self.history.getPastAverage()
         r = np.sum(self.episode.rewards)
 
+        if r == 9.9:
+            print()
+
         self.history.past_rewards.append(r)
 
         factor = self.learning_rate*(r - avg)
