@@ -2,9 +2,12 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
 import pickle
+from time import sleep
 
 import os
 
+FILE_TRIES = 3  # retry saving/loading in case of access conflicts
+SLEEP_TIME = 1  # seconds until retry
 
 class SaveInfo:
     """
@@ -20,12 +23,27 @@ class SaveInfo:
         self.dir = "../data/models"
 
     def save(self):
-        with open(self.dir + "/" + self.filename+".pkl", "wb+") as pickle_out:
-            pickle.dump(self.agent, pickle_out)
+        done = [False]
+        for i in range(FILE_TRIES):
+            try:
+                with open(self.dir + "/" + self.filename+".pkl", "wb+") as pickle_out:
+                    pickle.dump(self.agent, pickle_out)
+                done[0] = True
+            except:
+                sleep(SLEEP_TIME)
+                pass
+            if done[0]:
+                break
+
 
     def load(self):
-        with open(self.dir + "/" + self.filename+".pkl", "rb") as pickle_in:
-            return pickle.load(pickle_in)
+        for i in range(FILE_TRIES):
+            try:
+                with open(self.dir + "/" + self.filename+".pkl", "rb") as pickle_in:
+                    return pickle.load(pickle_in)
+            except:
+                sleep(SLEEP_TIME)
+                pass
 
 
 class Agent(metaclass=ABCMeta):

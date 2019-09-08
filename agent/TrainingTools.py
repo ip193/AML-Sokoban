@@ -150,11 +150,12 @@ class TrainingTools:
                 episodes += 1
 
                 if episodes % self.save_every == 0:
-                    print("Saving agents.")
+                    print("Saving agents.", episodes)
                     for agent in self.agents:
-                        agent.save()  # TODO
+                        print("Total episodes for agent:", len(agent.history.past_rewards))  # FIXME Doesn't work for non-SSRL
+                        agent.save()
                 if reload_every is not None and episodes % reload_every == 0:
-                    print("Reloading data.")
+                    print("Reloading data.", episodes)
                     self.setData(self.data_filename, self.data_fileEnding)
                     sample = np.where(self.distances == step_distance)[0]
 

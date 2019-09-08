@@ -13,6 +13,9 @@ from gym_sokoban.envs import SokobanEnv
 from gym_sokoban.envs.room_utils import room_topology_generation, box_displacement_score, ACTION_LOOKUP, reverse_move
 from tqdm import tqdm
 
+from agent.Agent import FILE_TRIES, SLEEP_TIME
+
+
 def generate_env():
     return SokobanEnv(num_boxes=3, max_steps=200, reset=False)
 
@@ -271,7 +274,7 @@ def drop_duplicate_states(states:list, room_structures:list, distances:list, act
 
     hashed_x = [[], []]  # [hash], [index in database] for states we want to keep
     hash_ind = 0
-    for x in tqdm(states):
+    for x in states:
         x_hash = hash(marshal.dumps(x))
         try:
             duplicate = hashed_x[0].index(x_hash)  # attempt to find a duplicate
@@ -290,34 +293,41 @@ def drop_duplicate_states(states:list, room_structures:list, distances:list, act
 
     keep = np.asarray(hashed_x[1])
 
+    print("Dropping", states.size - keep.size, "states. ")
+
     states, room_structures, distances, actions = states[keep], room_structures[keep], distances[keep], actions[keep]
 
     return list(states), list(room_structures), list(distances), list(actions)
 
 
-def evaluate_and_save(states, room_structures, distances, actions, outfile_name):
-    """
-    Check for duplicates and save all games found so far (allows for generation and storage of games "in parallel")
-    :return:
-    """
-
-    states, room_structures, distances, actions = drop_duplicate_states(states, room_structures, distances, actions)
+def save_data(outfile_name, states, room_structures, distances, actions):
 
     # save data
-    print("Saving:", outfile_name)
+    print("Saving training states:", outfile_name)
 
-    with gzip.open(f'./train/states_{outfile_name}.pkl.gz', 'wb') as f:
-        pickle.dump(states, f, pickle.HIGHEST_PROTOCOL)
+    done = [False]
+    for i in range(FILE_TRIES):
+        try:
+            with gzip.open(f'./train/states_{outfile_name}.pkl.gz', 'wb') as f:
+                pickle.dump(states, f, pickle.HIGHEST_PROTOCOL)
 
-    with gzip.open(f'./train/distances_{outfile_name}.pkl.gz', 'wb') as f:
-        pickle.dump(distances, f, pickle.HIGHEST_PROTOCOL)
+            with gzip.open(f'./train/distances_{outfile_name}.pkl.gz', 'wb') as f:
+                pickle.dump(distances, f, pickle.HIGHEST_PROTOCOL)
 
-    with gzip.open(f'./train/actions_{outfile_name}.pkl.gz', 'wb') as f:
-        pickle.dump(actions, f, pickle.HIGHEST_PROTOCOL)
+            with gzip.open(f'./train/actions_{outfile_name}.pkl.gz', 'wb') as f:
+                pickle.dump(actions, f, pickle.HIGHEST_PROTOCOL)
 
-    with gzip.open(f'./train/room_structures_{outfile_name}.pkl.gz', 'wb') as f:
-        pickle.dump(room_structures, f, pickle.HIGHEST_PROTOCOL)
+            with gzip.open(f'./train/room_structures_{outfile_name}.pkl.gz', 'wb') as f:
+                pickle.dump(room_structures, f, pickle.HIGHEST_PROTOCOL)
 
+            done[0] = True
+        except:
+            print("Failure saving training states. Retrying: ")
+            time.sleep(SLEEP_TIME)
+
+        if done[0]:
+            print("Training states saved.")
+            break
     return states, room_structures, distances, actions
 
 def load_data(infile:str):
@@ -327,18 +337,39 @@ def load_data(infile:str):
     :return:
     """
 
-    with gzip.open(f'./train/states_{infile}.pkl.gz', 'rb') as f:
-        states = pickle.load(f)
+    print("Loading states, room_structures, distances, actions")
+    done = [False]
+    ret = []
+    for i in range(FILE_TRIES):
+        try:
+            ret.clear()
+            # IMPORTANT: Maintain the order of the following loads
+            with gzip.open(f'./train/states_{infile}.pkl.gz', 'rb') as f:
+                states = pickle.load(f)
+                ret.append(states)
 
-    with gzip.open(f'./train/distances_{infile}.pkl.gz', 'rb') as f:
-        distances = pickle.load(f)
+            with gzip.open(f'./train/room_structures_{infile}.pkl.gz', 'rb') as f:
+                room_structures = pickle.load(f)
+                ret.append(room_structure)
 
-    with gzip.open(f'./train/actions_{infile}.pkl.gz', 'rb') as f:
-        actions = pickle.load(f)
+            with gzip.open(f'./train/distances_{infile}.pkl.gz', 'rb') as f:
+                distances = pickle.load(f)
+                ret.append(distances)
 
-    with gzip.open(f'./train/room_structures_{infile}.pkl.gz', 'rb') as f:
-        room_structures = pickle.load(f)
+            with gzip.open(f'./train/actions_{infile}.pkl.gz', 'rb') as f:
+                actions = pickle.load(f)
+                ret.append(actions)
 
+            done[0] = True
+
+        except:
+            print("Failure loading states, room_structures, distances, actions, retrying:")
+            time.sleep(SLEEP_TIME)
+
+        if done[0]:
+            print("Finished loading states, room_structures, distances, actions")
+            break
+    states, room_structures, distances, actions = ret[0], ret[1], ret[3], ret[3]
     return states, room_structures, distances, actions
 
 
@@ -404,8 +435,7 @@ if __name__ == '__main__':
 
         if (game_index + 1) % save_every == 0:
 
-            states, room_structures, distances, actions = evaluate_and_save(states, room_structures, distances, actions,
-                                                                            outfile_name)
+            save_data(outfile_name, *drop_duplicate_states(states, room_structures, distances, actions))  # evaluate and save
 
     print('len(states)', len(states))
 
