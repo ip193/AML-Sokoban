@@ -8,7 +8,7 @@ import os
 from tqdm import tqdm
 
 from data.generate_data import get_box_mapping
-
+from agent.Agent import FILE_TRIES, SLEEP_TIME
 
 class TrainingTools:
     """
@@ -45,15 +45,25 @@ class TrainingTools:
         self.data_filename = filename
         self.data_fileEnding = fileEnding
         def f_open(name):
-            if fileEnding == ".pkl.gz":
-                with gzip.open('../data/train/' + name + '_' + self.data_filename + self.data_fileEnding, 'rb') as f:
-                    return pickle.load(f)
+            print("Setting training data: ")
+            for i in range(FILE_TRIES):
+                try:
+                    if fileEnding == ".pkl.gz":
+                        with gzip.open('../data/train/' + name + '_' + self.data_filename + self.data_fileEnding, 'rb') as f:
+                            ret = pickle.load(f)
+                            return ret
 
-            if fileEnding == ".npy":
-                return np.load('../data/train/' + name + '_' + self.data_filename + self.data_fileEnding)
+                    if fileEnding == ".npy":
+                        ret = np.load('../data/train/' + name + '_' + self.data_filename + self.data_fileEnding)
+                        return ret
 
-            else:
-                raise RuntimeError("Invalid file ending received: "+fileEnding)
+                    else:
+                        raise RuntimeError("Invalid file ending received: "+fileEnding)
+                except EOFError:
+                    print("Training data access failed. Retrying:")
+                    time.sleep(SLEEP_TIME)
+
+
 
         self.states, self.room_structures, self.distances = np.asarray(f_open("states")), \
                                 np.asarray(f_open("room_structures")), np.asarray(f_open("distances"))
@@ -158,6 +168,7 @@ class TrainingTools:
                     print("Reloading data.", episodes)
                     self.setData(self.data_filename, self.data_fileEnding)
                     sample = np.where(self.distances == step_distance)[0]
+                    print("New database size:", sample.size)
 
             print("Saving agents.")
             for agent in self.agents:
