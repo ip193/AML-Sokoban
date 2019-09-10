@@ -44,8 +44,9 @@ class TrainingTools:
         """
         self.data_filename = filename
         self.data_fileEnding = fileEnding
+
+        print("Setting training data:", self.data_filename)
         def f_open(name):
-            print("Setting training data: ")
             for i in range(FILE_TRIES):
                 try:
                     if fileEnding == ".pkl.gz":
@@ -67,6 +68,7 @@ class TrainingTools:
 
         self.states, self.room_structures, self.distances = np.asarray(f_open("states")), \
                                 np.asarray(f_open("room_structures")), np.asarray(f_open("distances"))
+        print("Database size:", self.states.shape[0])
 
     def setProtocol(self, steps:list, training_volume:list):
         """
@@ -168,7 +170,6 @@ class TrainingTools:
                     print("Reloading data.", episodes)
                     self.setData(self.data_filename, self.data_fileEnding)
                     sample = np.where(self.distances == step_distance)[0]
-                    print("New database size:", sample.size)
 
             print("Saving agents.")
             for agent in self.agents:

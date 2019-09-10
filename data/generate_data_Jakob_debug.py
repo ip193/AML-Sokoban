@@ -282,18 +282,25 @@ def drop_duplicate_states(states:list, room_structures:list, distances:list, act
 
             keep = duplicate_ind if distances[duplicate_ind] <= distances[hash_ind] else hash_ind
 
-            hashed_x[1].append(keep)
+            if keep == duplicate_ind:  # if the previously added duplicate is better, leave it and don't add to the DB
+                pass
+            else:  # if the new state is better, add it to the DB and remove the old state
+                hashed_x[1].append(keep)
+                hashed_x[0].append(x_hash)
+                hashed_x[1].pop(duplicate)
+                hashed_x[0].pop(duplicate)
+
 
         except ValueError:  # no duplicate found
 
             hashed_x[1].append(hash_ind)
+            hashed_x[0].append(x_hash)
 
-        hashed_x[0].append(x_hash)
         hash_ind += 1
 
     keep = np.asarray(hashed_x[1])
 
-    print("Dropping", states.size - keep.size, "states. ")
+    print("Dropping", states.shape[0] - keep.size, "states. ")
 
     states, room_structures, distances, actions = states[keep], room_structures[keep], distances[keep], actions[keep]
 
@@ -327,6 +334,7 @@ def save_data(outfile_name, states, room_structures, distances, actions):
 
         if done[0]:
             print("Training states saved.")
+            print("Database size:", len(states))
             break
     return states, room_structures, distances, actions
 
@@ -368,6 +376,7 @@ def load_data(infile:str):
 
         if done[0]:
             print("Finished loading states, room_structures, distances, actions")
+            print("Database size:", ret[0].shape[0])
             break
     states, room_structures, distances, actions = ret[0], ret[1], ret[3], ret[3]
     return states, room_structures, distances, actions
@@ -389,7 +398,7 @@ if __name__ == '__main__':
     n_training_data = int(1e4)  # generate this many data
     save_every = 40  # save after this many games have been added
 
-    for game_index in tqdm(range(n_training_data)):
+    for game_index in range(n_training_data):
         # for game_index in range(n_training_data):
 
         room_structure = None
@@ -431,7 +440,7 @@ if __name__ == '__main__':
                 #     weird_states.append((state, distance, room_structure))  # error here
                 #     pass
         else:
-            print('🚨', 'could not solve a puzzle... skipping...')
+            pass # print('🚨', 'could not solve a puzzle... skipping...')
 
         if (game_index + 1) % save_every == 0:
 
@@ -441,4 +450,4 @@ if __name__ == '__main__':
 
     # TODO remove duplicate state with bigger distance (Done: Jakob)
 
-    evaluate_and_save(states, room_structures, distances, actions, outfile_name)
+    save_data(outfile_name, *drop_duplicate_states(states, room_structures, distances, actions))

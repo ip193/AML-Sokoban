@@ -151,6 +151,7 @@ class History:
             return np.mean(self.past_rewards)
 
         window = max(min_window, int(l*proportion))
+        window = min(window, 2000)  # look at most 2000 states into the past
 
         return np.mean(self.past_rewards[-window:])
 
@@ -174,7 +175,6 @@ class SSRL(Agent):
         """
 
         super().__init__()
-        self.name = "SSRL" if as_in_paper else "SSRL_jakob_variant"
 
         self.layers = layers
         self.nnet_bias = nnet_bias
@@ -182,6 +182,9 @@ class SSRL(Agent):
         self.learning_rate = learning_rate
         self.decay = decay
         self.special_update = special_update  # apply the update from the paper or a different one
+
+        self.default_name = "SSRL" if as_in_paper else "SSRL_jakob_variant"
+        self.resetName()  #  add name info
 
         self.NNET = FFNN(self.nonlinearity, self.nnet_bias)
 
@@ -206,6 +209,16 @@ class SSRL(Agent):
         else:
             self.params = Params(self.layers, self.nnet_bias)
             self.params.initializeRandom()
+        self.resetName()
+
+    def resetName(self):
+        """
+        Set the name according to the number of layers in the NNET.
+        :return:
+        """
+        self.name = self.default_name
+        for i in range(1, len(self.layers)-1):  # name is updated based on number of hidden layers
+            self.name += "_" + str(self.layers[i])
 
     # Abstract methods
 

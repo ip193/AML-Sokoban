@@ -1,0 +1,48 @@
+
+
+
+
+Stochastic Synapse Reinforcement Learning (SSRL) is a reinforcement learning algorithm "for artificial neural networks (ANNs) to learn an episodic task in which there is discrete input with perceptual aliasing, continuous output, delayed reward, an unknown reward structure, and environmental change". 
+
+I chose this algorithm for its apparent flexibility, applicability to real-world tasks (the original paper uses it to learn to control a robot), and relative ease of implementation. 
+
+Intuitively, the algorithm works by sampling neural network weights from a learned normal distribution at each time step in an episode and updating those distribution parameters (mean and standard deviation) at the end of the episode depending on 
+
+1) whether the performance in an episode using those sampled weights positively or negatively exceeded a past average reward
+
+and
+
+2) whether the sampled weights were greater than or less than the average weights suggested by that weight's normal distribution. 
+
+Note that each weight in the network is associated with its own normal distribution and is therefore updated independently. 
+
+These two factors are then multiplied together to yield the "eligibility trace" for each of the parameters of the normal distribution of each weight at each step, which intuitively accounts for the "influence" this node had on the final result and whether it was positively associated with a reward. 
+
+
+The architecture proposed by Shah and Hougen uses a neural network with only an input layer and output layer, as well as a bias node. 
+
+
+In the following section, I will discuss the design choices used in the paper and their "transferability" to the Sokoban problem, as well as the results of my own experimentations with adapting the algorithm to the problem. 
+
+
+Preliminarily, it should be observed that the design used in the paper has two crucial but unacknowledged aspects: Inputs to the network were always positive, and the network's nodes used a hyperbolic tangent (tanh) activation function. 
+
+These points are important when it comes to expanding the architecture suggested in the paper to a multi-layer model. While inputs can be assumed to be (assumed to be positive wlog)... (hidden layers negative activations) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
