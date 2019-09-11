@@ -264,17 +264,22 @@ def solution_works(room_structures, room_states, actions, distances, idx):
 
 
 
-def drop_duplicate_states(states:list, room_structures:list, distances:list, actions:list):
+def drop_duplicate_states(states:list, room_structures:list, distances:list, actions:list, look_at_last=None):
     """
     Checks for duplicate states and chooses only those with the smallest provided distance.
+    :param look_at_last: Examine only the last 'n' states for duplicates (first have already been checked)
     :return:
     """
     states, room_structures, distances, actions = np.asarray(states), np.asarray(room_structures)\
         , np.asarray(distances), np.asarray(actions)
 
+    if look_at_last is None:
+        look_at_last = states.shape[0]
+
+    last_start_ind = states.shape[0] - look_at_last
     hashed_x = [[], []]  # [hash], [index in database] for states we want to keep
-    hash_ind = 0
-    for x in states:
+    hash_ind = last_start_ind
+    for x in states[-look_at_last:]:
         x_hash = hash(marshal.dumps(x))
         try:
             duplicate = hashed_x[0].index(x_hash)  # attempt to find a duplicate
@@ -297,6 +302,8 @@ def drop_duplicate_states(states:list, room_structures:list, distances:list, act
             hashed_x[0].append(x_hash)
 
         hash_ind += 1
+
+    hashed_x[1] = list(range(last_start_ind)) + hashed_x[1]
 
     keep = np.asarray(hashed_x[1])
 
@@ -444,10 +451,10 @@ if __name__ == '__main__':
 
         if (game_index + 1) % save_every == 0:
 
-            save_data(outfile_name, *drop_duplicate_states(states, room_structures, distances, actions))  # evaluate and save
+            save_data(outfile_name, *drop_duplicate_states(states, room_structures, distances, actions, look_at_last=save_every))  # evaluate and save
 
     print('len(states)', len(states))
 
     # TODO remove duplicate state with bigger distance (Done: Jakob)
 
-    save_data(outfile_name, *drop_duplicate_states(states, room_structures, distances, actions))
+    save_data(outfile_name, *drop_duplicate_states(states, room_structures, distances, actions, look_at_last=save_every))

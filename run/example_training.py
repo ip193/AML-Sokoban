@@ -1,4 +1,4 @@
-from agent.TrainingTools import TrainingTools
+from agent.TrainingTools import TrainingThread
 from agent.SSRL import SSRL
 import pickle
 import numpy as np
@@ -17,11 +17,12 @@ for ind, agent in enumerate(agents):
         print("Starting new agent:", agents[ind].name)
         pass
 
-training = TrainingTools(agents, save_every=200)
-database = "main"
-training.setData(database)
-training.setProtocol([1, 2], [2e4, 2e4])    # [1, 2, 3, 4], [2000, 2000, 2000, 2000])
+for agent in agents:
 
-training.runTraining(reload_every=400)
-#  training.runTraining()
+    training = TrainingThread([agent], save_every=200, reload_every=400)
+    database = "main"
+    training.training_tools.setData(database)
+    training.training_tools.setProtocol([1, 2], [5e2, 5e2])    # [1, 2, 3, 4], [2000, 2000, 2000, 2000])
+
+    training.start()  # start the thread
 

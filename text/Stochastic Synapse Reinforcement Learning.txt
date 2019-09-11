@@ -4,7 +4,7 @@
 
 Stochastic Synapse Reinforcement Learning (SSRL) is a reinforcement learning algorithm "for artificial neural networks (ANNs) to learn an episodic task in which there is discrete input with perceptual aliasing, continuous output, delayed reward, an unknown reward structure, and environmental change". 
 
-I chose this algorithm for its apparent flexibility, applicability to real-world tasks (the original paper uses it to learn to control a robot), and relative ease of implementation. 
+I chose this algorithm for its apparent flexibility (its architecture requires no detailed knowledge of the task to be solved), applicability to real-world tasks (the original paper uses it to learn to control a robot), relative ease of implementation, and the fact that Sokoban matches the algorithm's described purpose except for the discrete output of the Sokoban agent. 
 
 Intuitively, the algorithm works by sampling neural network weights from a learned normal distribution at each time step in an episode and updating those distribution parameters (mean and standard deviation) at the end of the episode depending on 
 
@@ -16,18 +16,62 @@ and
 
 Note that each weight in the network is associated with its own normal distribution and is therefore updated independently. 
 
-These two factors are then multiplied together to yield the "eligibility trace" for each of the parameters of the normal distribution of each weight at each step, which intuitively accounts for the "influence" this node had on the final result and whether it was positively associated with a reward. 
+These two factors are then multiplied together to yield the "eligibility trace" for each of the parameters of the normal distribution of each weight at each step, which intuitively accounts for the "influence" this node had on the final result and whether it was positively associated with a reward. The advantage of this approach is that it can control exploitation against exploration for each weight in the network independently, with the mean of the parameter distribution representing the hypothesis for the best policy and the the variance of the distribution the desired degree of exploration away from this hypothesis. 
 
 
-The architecture proposed by Shah and Hougen uses a neural network with only an input layer and output layer, as well as a bias node. 
+In the following section, I will discuss the design choices used in the paper and their transferability to the Sokoban problem, as well as the results of my own experimentations with adapting the algorithm to the problem. 
 
 
-In the following section, I will discuss the design choices used in the paper and their "transferability" to the Sokoban problem, as well as the results of my own experimentations with adapting the algorithm to the problem. 
+The architecture proposed by Shah and Hougen uses a neural network with only an input layer and output layer, as well as a bias neuron. Preliminarily, it seems clear that a single-layer architecture is probably insufficient for combinatorial puzzles like Sokoban, as these games require the ability to make abstract inferences over combinations of multiple features (pixels) in a way that is impossible with just a single layer. Because the paper only discusses a single-layer approach and makes no mention of generalization to multiple layers, expanding the architecture was a somewhat experimental task. For completeness, I also trained a model using the exact architecture from the paper.
 
 
-Preliminarily, it should be observed that the design used in the paper has two crucial but unacknowledged aspects: Inputs to the network were always positive, and the network's nodes used a hyperbolic tangent (tanh) activation function. 
+When extrapolating the architecture of the paper to a multi-layer architecture, it should be observed that the original design choices have two crucial but unacknowledged aspects: Inputs to the network were always positive, and the network's nodes used a hyperbolic tangent (tanh) activation function. 
 
-These points are important when it comes to expanding the architecture suggested in the paper to a multi-layer model. While inputs can be assumed to be (assumed to be positive wlog)... (hidden layers negative activations) 
+
+Because the introduction to the paper states explicitly that the algorithm is designed for discrete inputs, it is possible to assume without loss of generality that inputs to the network shall always have positive sign, as negative discrete inputs can always be mapped to a positive input by means of some transformation. However, I intended to transfer the architecture to a multi-layer design, where potentially negative tanh activations of hidden layers k [Latex x_k_i(h)] replace the inputs [Latex x_i(h)] from the paper, so it is not possible to avoid considering negative inputs to nodes. 
+
+
+[Eligibility trace formulae here]
+
+
+For simplicity, I will make reference to the update formula for the mean of the parameter's distribution and assume episodes have only a single step. Statements are analogously applicable for the update of the variance and for longer episodes. I will refer to [Latex deviation from mean] as the "deviation". 
+
+The sign of the input becomes important when constructing the eligibility traces for the end-of-episode update. The intended intuition, as mentioned above and confirmed by Hougen in an email exchange, behind multiplying the deviation with the input to the node, is to account for how much influence that node's value had on the output of the network, as well as for whether the current parameters of the normal distribution are set to produce more or less of this behavior. 
+
+[Insert table from paper showing the four signs of the eligibility trace] [Insert self-made table showing what happens when an input is allowed to be negative]
+
+If an input were allowed to be negative, this update formula would fail to produce the intended behavior. Hougen confirmed in an email that this problem had a simple fix - replacing [Latex x_i(h)] with [Latex |x_i(h)|], which would produce the desired behavior for both positive and negative inputs. 
+
+[Insert schematic of a multi-layer architecture with positive and negative inputs to illustrate the problem]
+
+This works in the single-layer architecture, but raises further questions when applied to a multi-layer architecture. Consider the following toy problem: [Insert example with some number of layers and bias nodes, and the objective is to reproduce the input or negate the input] 
+
+This update formula becomes critical when weights in the network have different signs - it is no longer intuitively clear whether weights should be increased or decreased, as there are now multiple combinations of signs for the weights which would all produce the correct output of the network, but which exhibit instability when the update rule is applied. 
+
+[Insert series of graphics showing sign change after updates with potentially oscillating/non-convergent behavior]
+
+It is possible, in such an arrangement, for a "chain" [Figure x] of weights to have a combination of signs which produces the correct output, yet the update formula, applied with either [Latex x_k_i(h) or |x_k_i(h)| ] would update the weights to bring them out of that optimal configuration. 
+
+Once such an effective configuration of weight signs is lost, the network produces an output with the wrong sign, in which case updates on the weights reverse direction, potentially entering a stage of oscillating behavior in which compensation of the sign of different weights occurs simultaneously in an oscillating and self-cancelling fashion. 
+
+
+[Note that these are theoretical concerns that were not empirically reproduced. It is not clear to which extent this behavior actually occurs in different learning problems or neural network depths.]
+
+
+Anticipating these troubles, there is another solution available. The output of a chain of nodes must have either a positive or negative sign in order to influence the sign of the output of the network. Because using tanh at every layer makes possible various combinations of signs that produce the correct output sign of a given chain, it is potentially better to use tanh as an activation in only one layer and use sigmoid functions as activations in the rest of the layers. 
+
+Sigmoid functions are positive and strictly increasing and are a commonly used activation function in neural networks. 
+
+In such a configuration, the update formula produces the desired effect for each weight and avoids the problem of oscillation. 
+
+
+
+
+
+
+
+
+
 
 
 

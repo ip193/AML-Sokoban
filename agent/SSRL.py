@@ -151,7 +151,7 @@ class History:
             return np.mean(self.past_rewards)
 
         window = max(min_window, int(l*proportion))
-        window = min(window, 2000)  # look at most 2000 states into the past
+        window = min(window, 200)  # look at most 2000 states into the past
 
         return np.mean(self.past_rewards[-window:])
 

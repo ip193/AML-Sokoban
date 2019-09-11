@@ -22,7 +22,7 @@ kernel = sklearn.gaussian_process.kernels.RBF()
 agent_regressors = [[LinearRegression(fit_intercept=False), krr.KernelRidge(kernel="rbf", alpha=0.3, gamma=300), GaussianProcessRegressor(kernel)]
                     for a in load_agents]
 
-poly_n = 4
+poly_n = 8
 
 def build_poly_features(size, n):
     features = np.zeros((size, n+1)).astype(object)

@@ -6,6 +6,7 @@ import pickle
 import gzip
 import os
 from tqdm import tqdm
+import threading
 
 from data.generate_data import get_box_mapping
 from agent.Agent import FILE_TRIES, SLEEP_TIME
@@ -15,7 +16,7 @@ class TrainingTools:
     Hold training loop and info for Agent-like algorithms
     """
 
-    def __init__(self, agents, steps=100, save_every=100):
+    def __init__(self, agents, steps=100, save_every=100, reload_every=None):
         """
 
         :param steps: How many steps per episode
@@ -27,6 +28,7 @@ class TrainingTools:
 
         self.agents = agents
         self.save_every = save_every
+        self.reload_every = reload_every
 
         self.states, self.room_structures, self.distances = None, None, None  # Hold training data
 
@@ -111,7 +113,7 @@ class TrainingTools:
 
         return env.room_state
 
-    def runTraining(self, reload_every=None):
+    def runTraining(self):
         """
         Execute the entire training process.
         :param reload: If not None, reload training data after this many games (allows for parallel data generation and loading)
@@ -166,7 +168,7 @@ class TrainingTools:
                     for agent in self.agents:
                         print("Total episodes for agent:", len(agent.history.past_rewards))  # FIXME Doesn't work for non-SSRL
                         agent.save()
-                if reload_every is not None and episodes % reload_every == 0:
+                if self.reload_every is not None and episodes % self.reload_every == 0:
                     print("Reloading data.", episodes)
                     self.setData(self.data_filename, self.data_fileEnding)
                     sample = np.where(self.distances == step_distance)[0]
@@ -174,4 +176,16 @@ class TrainingTools:
             print("Saving agents.")
             for agent in self.agents:
                 agent.save()
+
+class TrainingThread(threading.Thread):
+    """
+    Runs training in its own thread (should pass agents list with only one element)
+    """
+    def __init__(self, agents, steps=100, save_every=100, reload_every=None):
+        super().__init__()
+        self.training_tools = TrainingTools(agents, steps=steps, save_every=save_every, reload_every=reload_every)
+
+    def run(self):
+        print("Thread starting: ", self.training_tools.agents[0].name)
+        self.training_tools.runTraining()
 
