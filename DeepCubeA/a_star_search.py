@@ -1,3 +1,4 @@
+import gc
 import hashlib
 import marshal
 from copy import deepcopy
@@ -94,7 +95,7 @@ def heuristic(env, model):
     return predict.detach().cpu().numpy()[0][0]
 
 
-def search_way(start_env, model, epsilon=0.000000001):
+def search_way(start_env, model, epsilon=0.000000001, weight=1):
     x = sum((start_env.room_state > 0).flatten())
     progress_bar = tqdm(total=int(x * binom(x - 1, start_env.num_boxes)))
 
@@ -106,34 +107,52 @@ def search_way(start_env, model, epsilon=0.000000001):
     fscore = {start_env_md5: heuristic(start_env, model)}
     open_heap = []
     open_heap_md5_dict = {}
+    open_heap_fscore_set = set()
     actions = {}
 
-    def add_to_open_heap_md5_dict(key):
+    done = False
+
+    def add_to_open_heap_md5_dict(fscore, key):
         if key in open_heap_md5_dict:
             open_heap_md5_dict[key] += 1
         else:
             open_heap_md5_dict[key] = 1
 
-    def remove_from_open_heap_md5_dict(key):
+        open_heap_fscore_set.add(fscore)
+
+    def remove_from_open_heap_md5_dict(fscore, key):
         open_heap_md5_dict[key] -= 1
         if open_heap_md5_dict[key] == 0:
             del open_heap_md5_dict[key]
 
-    heappush(open_heap, (fscore[start_env_md5], start_env))
-    add_to_open_heap_md5_dict(start_env_md5)
+        if fscore in open_heap_fscore_set:
+            open_heap_fscore_set.remove(fscore)
+
+    heappush(open_heap, (fscore[start_env_md5], [start_env.room_state, start_env.room_fixed]))
+    add_to_open_heap_md5_dict(fscore[start_env_md5], start_env_md5)
 
     counter = 0
-
+    current = deepcopy(start_env)
+    current.set_maxsteps(999999)
     while open_heap:
-        current = heappop(open_heap)[1]  # pop the smallest item off the heap
+        room_state, room_fixed = heappop(open_heap)[1]  # pop the smallest item off the heap
+        current.room_state = room_state
+        current.room_fixed = room_fixed
+        player_position = np.where(room_state == 5)
+        if len(player_position[0]) > 1:
+            print('ERROR', player_position)
+        current.player_position = np.array([player_position[0][0], player_position[1][0]])
+
         current_md5 = hashlib.md5(marshal.dumps(current.room_state)).hexdigest()
-        remove_from_open_heap_md5_dict(current_md5)
+        remove_from_open_heap_md5_dict(fscore[current_md5], current_md5)
 
         counter += 1
-        if counter % 10 == 0:
-            progress_bar.update(10)
+        if counter % 1000 == 0:
+            progress_bar.update(1000)
+            if counter % 10000 == 0:
+                gc.collect()
 
-        if getattr(current, 'done', False):
+        if done:
             steps = []
             while current_md5 in came_from:
                 steps.extend(actions[current_md5])
@@ -148,7 +167,6 @@ def search_way(start_env, model, epsilon=0.000000001):
 
             neighbor_env = deepcopy(current)
             _, _, done, _ = neighbor_env.step(action)
-            neighbor_env.done = done
 
             neighbor_env_md5 = hashlib.md5(marshal.dumps(neighbor_env.room_state)).hexdigest()
 
@@ -161,17 +179,17 @@ def search_way(start_env, model, epsilon=0.000000001):
             if tentative_g_score < gscore.get(neighbor_env_md5, 0) or neighbor_env_md5 not in open_heap_md5_dict:
                 came_from[neighbor_env_md5] = current_md5
                 gscore[neighbor_env_md5] = tentative_g_score
-                fscore[neighbor_env_md5] = tentative_g_score + heuristic(neighbor_env, model)
+                fscore[neighbor_env_md5] = tentative_g_score * weight + heuristic(neighbor_env, model)
                 if neighbor_env_md5 not in actions:
                     actions[neighbor_env_md5] = []
                 actions[neighbor_env_md5].append(action)
-                while fscore[neighbor_env_md5] in [i[0] for i in open_heap]:
+                while fscore[neighbor_env_md5] in open_heap_fscore_set:
                     fscore[neighbor_env_md5] += epsilon
-                heappush(open_heap, (fscore[neighbor_env_md5], neighbor_env))
-                add_to_open_heap_md5_dict(neighbor_env_md5)
+                heappush(open_heap, (fscore[neighbor_env_md5], [neighbor_env.room_state, neighbor_env.room_fixed]))
+                add_to_open_heap_md5_dict(fscore[neighbor_env_md5], neighbor_env_md5)
 
     progress_bar.close()
-    return False
+    return False, False
 
 
 if __name__ == '__main__':
@@ -184,7 +202,7 @@ if __name__ == '__main__':
     if type(result) is list and len(result) > 0:
         print(f'total of {len(result)} steps ({len(result) / float(explored_len) * 100:0.5f}% of explored steps)')
         x = sum((env.room_state > 0).flatten())
-        print(f'explored {len(result) / float(x * binom(x-1, env.num_boxes)) * 100:0.5f}% of all possible states')
+        print(f'explored {len(result) / float(x * binom(x - 1, env.num_boxes)) * 100:0.5f}% of all possible states')
         for action_idx in result:
             print(ACTION_LOOKUP[action_idx])
     else:
