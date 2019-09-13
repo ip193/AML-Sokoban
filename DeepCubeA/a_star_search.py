@@ -110,8 +110,6 @@ def search_way(start_env, model, epsilon=0.000000001, weight=1):
     open_heap_fscore_set = set()
     actions = {}
 
-    done = False
-
     def add_to_open_heap_md5_dict(fscore, key):
         if key in open_heap_md5_dict:
             open_heap_md5_dict[key] += 1
@@ -128,17 +126,15 @@ def search_way(start_env, model, epsilon=0.000000001, weight=1):
         if fscore in open_heap_fscore_set:
             open_heap_fscore_set.remove(fscore)
 
-    heappush(open_heap, (fscore[start_env_md5], [start_env.room_state, start_env.room_fixed]))
+    heappush(open_heap, (fscore[start_env_md5], [start_env.room_state, start_env.room_fixed, False]))
     add_to_open_heap_md5_dict(fscore[start_env_md5], start_env_md5)
 
     counter = 0
     current = deepcopy(start_env)
     current.set_maxsteps(999999)
     while open_heap:
-        room_state, room_fixed = heappop(open_heap)[1]  # pop the smallest item off the heap
-        current.room_state = room_state
-        current.room_fixed = room_fixed
-        player_position = np.where(room_state == 5)
+        current.room_state, current.room_fixed, current.done = heappop(open_heap)[1]  # pop the smallest item off the heap
+        player_position = np.where(current.room_state == 5)
         if len(player_position[0]) > 1:
             print('ERROR', player_position)
         current.player_position = np.array([player_position[0][0], player_position[1][0]])
@@ -152,7 +148,7 @@ def search_way(start_env, model, epsilon=0.000000001, weight=1):
             if counter % 10000 == 0:
                 gc.collect()
 
-        if done:
+        if current.done:
             steps = []
             while current_md5 in came_from:
                 steps.extend(actions[current_md5])
@@ -166,7 +162,7 @@ def search_way(start_env, model, epsilon=0.000000001, weight=1):
             tentative_g_score = gscore[current_md5] + 1
 
             neighbor_env = deepcopy(current)
-            _, _, done, _ = neighbor_env.step(action)
+            _, _, neighbor_env.done, _ = neighbor_env.step(action)
 
             neighbor_env_md5 = hashlib.md5(marshal.dumps(neighbor_env.room_state)).hexdigest()
 
@@ -185,7 +181,7 @@ def search_way(start_env, model, epsilon=0.000000001, weight=1):
                 actions[neighbor_env_md5].append(action)
                 while fscore[neighbor_env_md5] in open_heap_fscore_set:
                     fscore[neighbor_env_md5] += epsilon
-                heappush(open_heap, (fscore[neighbor_env_md5], [neighbor_env.room_state, neighbor_env.room_fixed]))
+                heappush(open_heap, (fscore[neighbor_env_md5], [neighbor_env.room_state, neighbor_env.room_fixed, neighbor_env.done]))
                 add_to_open_heap_md5_dict(fscore[neighbor_env_md5], neighbor_env_md5)
 
     progress_bar.close()
