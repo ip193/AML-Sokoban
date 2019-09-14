@@ -8,7 +8,7 @@ import sklearn.kernel_ridge as krr
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 # Note: This is NOT the name of the data used. A single agent can learn from different datasets.
-name = "compare_learners"
+name = "new_learners"
 
 
 load_agents = [SSRL(), SSRL(layers=(100, 100, 50, 4), as_in_paper=False, special_update=True)]
@@ -22,7 +22,7 @@ kernel = sklearn.gaussian_process.kernels.RBF()
 agent_regressors = [[LinearRegression(fit_intercept=False), krr.KernelRidge(kernel="rbf", alpha=0.3, gamma=300), GaussianProcessRegressor(kernel)]
                     for a in load_agents]
 
-poly_n = 8
+poly_n = 12
 
 def build_poly_features(size, n):
     features = np.zeros((size, n+1)).astype(object)
@@ -37,7 +37,7 @@ def fit_agent_regression(load_agent_ind):
     X = build_poly_features(y.size, poly_n)
     data_length = y.size
 
-    s = np.arange(0, data_length, 10)  # select a subset of the data so fitting doesn't take so long
+    s = np.arange(0, data_length, 100)  # select a subset of the data so fitting doesn't take so long
     y_, X_ = y[s], X[s]
 
     print("Fitting plots...")
@@ -46,7 +46,7 @@ def fit_agent_regression(load_agent_ind):
         regr.fit(X_, y_)
     print("Done fitting plots.")
 
-    line_points_x = np.arange(0, data_length, 100)  # evaluate regressors at these points
+    line_points_x = np.arange(0, data_length, 500)  # evaluate regressors at these points
     return (line_points_x, build_poly_features(data_length, poly_n)[line_points_x])
 
 

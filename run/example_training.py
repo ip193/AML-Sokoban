@@ -8,7 +8,7 @@ agents = [SSRL(), SSRL(layers=(100, 100, 50, 4), as_in_paper=False, special_upda
 
 for ind, agent in enumerate(agents):
     agent.setParams()  # initialize layer weights randomly
-    agent.setSaveInfo(special_name_tag="compare_learners")
+    agent.setSaveInfo(special_name_tag="new_learners")
     try:
         agents[ind] = agent.load()  # if this is executed, an existing agent is loaded and trained if possible
         print("Loaded:", agents[ind].name)
@@ -22,7 +22,7 @@ for agent in agents:
     training = TrainingThread([agent], save_every=200, reload_every=400)
     database = "main"
     training.training_tools.setData(database)
-    training.training_tools.setProtocol([1, 2], [5e2, 5e2])    # [1, 2, 3, 4], [2000, 2000, 2000, 2000])
+    training.training_tools.setProtocol([1, 2, 3, 4], [1e5, 1e5, 1e5, 1e5])
 
     training.start()  # start the thread
 
