@@ -1,5 +1,6 @@
 
 import numpy as np
+from torch import from_numpy
 
 from agent.Agent import Agent
 from agent.FFNN import FFNN
@@ -42,7 +43,7 @@ class Episode:
         :param observation:
         :return:
         """
-        self.observation = observation.flatten()
+        self.observation = observation
 
     def getObservation(self):
         """
@@ -60,7 +61,7 @@ class Episode:
 
 class Params:
     """
-    Hold parameters for the agent here.
+    Hold parameters for the agent here. Also handles deep SSRL params.
     """
 
     def __init__(self, layers, nnet_bias=True):
@@ -70,8 +71,8 @@ class Params:
         self.layers = layers
         self.nnet_bias = nnet_bias
 
-        self.means = []
-        self.stds = []
+        self.means, self.stds = [], []
+        self.means_torch, self.stds_torch = [], []
 
     def checkParams(self):
         """
@@ -127,6 +128,16 @@ class Params:
 
             self.stds.append(np.random.rand(size, self.layers[i-1] + bias)*(random_bounds[1][1] - random_bounds[1][0])
                               + random_bounds[1][0])
+
+    def copy_torch_params(self):
+        """
+        Convert numpy arrays to Tensors and store them separately.
+        :return:
+        """
+        for m in self.means:
+            self.means_torch.append(from_numpy(m).float())
+        for s in self.stds:
+            self.stds_torch.append(from_numpy(s).float())
 
 class History:
     """
@@ -197,7 +208,7 @@ class SSRL(Agent):
             params.checkParams()
             self.setParams(params)
 
-    def setParams(self, params = None):
+    def setParams(self, params=None):
         """
         Set up parameter attributes (generate randomly unless otherwise specified)
         :param p: Params object or None
@@ -233,6 +244,7 @@ class SSRL(Agent):
 
     def giveObservation(self, observation):
 
+        observation = observation.flatten()
         self.episode.setObservation(observation)
 
     def sample_normal(self, mean_cov:np.ndarray):
@@ -245,18 +257,11 @@ class SSRL(Agent):
 
         return np.random.normal(mean_cov[0], mean_cov[1])
 
-    def act(self):
-
+    def get_action_weights(self):
         """
-        Sample parameters from normal distributions according to formulae, record inputs/activation, store update information
-        and return NNET forward pass.
-        :return: Action to take
+        Sample and return parameter normal distributions to yield this step's weights.
+        :return:
         """
-
-        observation = self.episode.getObservation()
-        if observation is None:
-            raise RuntimeError("Called act on None observation")
-
         action_weights = []
 
         for ind in range(len(self.layers)):
@@ -271,22 +276,35 @@ class SSRL(Agent):
 
             action_weights.append(layer_weights)
 
+        return action_weights
+
+    def act(self):
+
+        """
+        Sample parameters from normal distributions according to formulae, record inputs/activation, store update information
+        and return NNET forward pass.
+        :return: Action to take
+        """
+
+        observation = self.episode.getObservation()
+        if observation is None:
+            raise RuntimeError("Called act on None observation")
+
+        action_weights = self.get_action_weights()
+
         self.NNET.setWeights(action_weights)
-        self.episode.setObservation(observation)
         layer_activations = self.episode.callForward()
+
+        if self.decay is not None:
+            self.episode.means_eligibility_traces_running_sum *= self.decay  # Apply reward decay
+            self.episode.stds_eligibility_traces_running_sum *= self.decay
 
         for weight_layer, weights in enumerate(action_weights):
 
-            if self.decay is not None:
-                self.episode.means_eligibility_traces_running_sum *= self.decay  # Apply reward decay
-                self.episode.stds_eligibility_traces_running_sum *= self.decay
-
-            diff_mean = (weights - self.params.means[weight_layer])
-
+            diff_mean = weights - self.params.means[weight_layer]
             chi = np.abs(layer_activations[weight_layer]) if self.special_update else layer_activations[weight_layer]
 
             self.episode.means_eligibility_traces_running_sum[weight_layer] += chi * diff_mean
-
             self.episode.stds_eligibility_traces_running_sum[weight_layer] += chi * (np.abs(diff_mean) - self.params.stds[weight_layer])
 
         return int(np.argmax(layer_activations[-1]) + 1)  # +1 because of the game code
