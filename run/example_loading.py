@@ -1,5 +1,7 @@
 from agent.TrainingTools import TrainingTools
 from agent.SSRL import SSRL
+from agent.DEEPSSRL import DEEPSSRL
+import torch
 import matplotlib.pyplot as plt
 import numpy as np
 import sklearn
@@ -8,11 +10,10 @@ import sklearn.kernel_ridge as krr
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 # Note: This is NOT the name of the data used. A single agent can learn from different datasets.
-name = "new_learners"
+name = "torch_learner"
 
 
-load_agents = [SSRL(), SSRL(layers=(100, 100, 50, 4), as_in_paper=False, special_update=True)]
-
+load_agents = [DEEPSSRL(layers=(100, 10, 10, 4), nonlinearity=torch.tanh)]
 for ind, l_a in enumerate(load_agents):
     l_a.setSaveInfo(special_name_tag=name)
     load_agents[ind] = l_a.load()
@@ -37,7 +38,7 @@ def fit_agent_regression(load_agent_ind):
     X = build_poly_features(y.size, poly_n)
     data_length = y.size
 
-    s = np.arange(0, data_length, 100)  # select a subset of the data so fitting doesn't take so long
+    s = np.arange(0, data_length, 1)  # select a subset of the data so fitting doesn't take so long
     y_, X_ = y[s], X[s]
 
     print("Fitting plots...")
@@ -46,7 +47,7 @@ def fit_agent_regression(load_agent_ind):
         regr.fit(X_, y_)
     print("Done fitting plots.")
 
-    line_points_x = np.arange(0, data_length, 500)  # evaluate regressors at these points
+    line_points_x = np.arange(0, data_length, 5)  # evaluate regressors at these points
     return (line_points_x, build_poly_features(data_length, poly_n)[line_points_x])
 
 

@@ -1,14 +1,16 @@
 from agent.TrainingTools import TrainingThread
 from agent.SSRL import SSRL
+from agent.DEEPSSRL import DEEPSSRL
 import pickle
 import numpy as np
+import torch
 
 
-agents = [SSRL(), SSRL(layers=(100, 100, 50, 4), as_in_paper=False, special_update=True)]
+agents = [DEEPSSRL(layers=(100, 10, 10, 4), nonlinearity=torch.tanh)]
 
 for ind, agent in enumerate(agents):
     agent.setParams()  # initialize layer weights randomly
-    agent.setSaveInfo(special_name_tag="new_learners")
+    agent.setSaveInfo(special_name_tag="torch_learner")
     try:
         agents[ind] = agent.load()  # if this is executed, an existing agent is loaded and trained if possible
         print("Loaded:", agents[ind].name)

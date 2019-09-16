@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from agent.Agent import Agent
 from agent.SSRL import SSRL, Episode, History, Params
 from agent.torchFFNN import FFNN
+import numpy as np
 
 
 
@@ -91,23 +92,70 @@ class DEEPSSRL(SSRL):
             self.episode.means_eligibility_traces_running_sum *= self.decay  # Apply reward decay
             self.episode.stds_eligibility_traces_running_sum *= self.decay
 
-        for weight_layer, weights in enumerate(action_weights):
+        for out_val in range(self.layers[-1]):  # backpropagate through each of the output nodes
+            self.NNET.zero_grad()
+            layer_activations[-1][out_val].backward(retain_graph=False if out_val == self.layers[-1] - 1 else True)
+            # retain the computational graph for intermediate for all but the last output
 
-            diff_mean = weights - self.params.means_torch[weight_layer]
-            chi = torch.abs(layer_activations[weight_layer])
+            for weight_layer, param_object in enumerate(action_weights):
 
-            for out_val in range(self.layers[-1]):  # backpropagate through each of the output nodes
-                self.NNET.zero_grad()
-                layer_activations[-1][out_val].backward()
+                bias = (weight_layer % 2 == 1)  # this weight layer holds bias weights
+                weight_layer = weight_layer//2
 
-                self.episode.means_eligibility_traces_running_sum[weight_layer] += (
-                        chi * diff_mean * weights.grad)
-                self.episode.stds_eligibility_traces_running_sum[weight_layer] += (
-                        chi * (torch.abs(diff_mean) - self.params.stds_torch[weight_layer]) * weights.grad)
+                diff_mean = param_object - self.params.means_torch[weight_layer][:, :-1] if not bias else (
+                    param_object - self.params.means_torch[weight_layer][:, -1]
+                )
+                diff_std = (torch.abs(diff_mean) - self.params.stds_torch[weight_layer][:, :-1]) if not bias else (
+                    (torch.abs(diff_mean) - self.params.stds_torch[weight_layer][:, -1])
+                )
+                chi = torch.abs(layer_activations[weight_layer]) if not bias else torch.ones(param_object.size())
+                # chi = torch.cat((chi.detach(), torch.tensor([1.])))  # add the bias again for a simple expression
 
+                """
+                We store all means and stds in a big matrix, and the last column are the bias values (we used to append 1. 
+                to the input vector to absorb the bias. Now, we must manually separate the weight block from the bias column
+                and perform the updates separately.             
+                """
 
+                update_means = self.episode.means_eligibility_traces_running_sum[weight_layer][:, :-1] if not bias else (
+                    self.episode.means_eligibility_traces_running_sum[weight_layer][:, -1]
+                )
+                update_stds = self.episode.stds_eligibility_traces_running_sum[weight_layer][:, :-1] if not bias else (
+                    self.episode.stds_eligibility_traces_running_sum[weight_layer][:, -1]
+                )
+
+                grad = param_object.grad
+
+                update_means += chi * (diff_mean * grad)
+                update_stds += chi * (diff_std * grad)
 
         return action
+
+    def endOfEpisodeUpdate(self):
+
+        """
+        Apply the parameter update rules to means and standard deviations
+        :return:
+        """
+
+        avg = self.history.getPastAverage()
+        r = np.sum(self.episode.rewards)
+
+        self.history.past_rewards.append(r)
+
+        factor = self.learning_rate*(r - avg)
+
+        #  Apply the parameter update rules
+        for ind, m in enumerate(self.params.means_torch):
+
+            m += factor*self.episode.means_eligibility_traces_running_sum[ind]
+            self.params.means[ind] = m.detach().numpy()
+
+        for ind, s in enumerate(self.params.stds_torch):
+
+            s += factor*self.episode.stds_eligibility_traces_running_sum[ind]
+            self.params.stds_torch[ind] = torch.clamp(s, min=0.05, max=1.)
+            self.params.stds[ind] = self.params.stds_torch[ind].detach().numpy()
 
 
 

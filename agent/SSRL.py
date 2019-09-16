@@ -1,5 +1,6 @@
 
 import numpy as np
+import torch
 from torch import from_numpy
 
 from agent.Agent import Agent
@@ -21,7 +22,7 @@ class Episode:
 
         self.agent = agent
 
-    def resetEpisode(self, episode_tag=None):  # TODO: Add tag
+    def resetEpisode(self, episode_tag=None):
         """
         Reset the episode
         :param episode_tag: Episode identifier
@@ -34,8 +35,20 @@ class Episode:
         self.episode_tag = episode_tag  # parent class attributes
         self.observation = None
 
-        self.means_eligibility_traces_running_sum = [np.zeros(m.shape) for m in self.agent.params.means]
-        self.stds_eligibility_traces_running_sum = [np.zeros(s.shape) for s in self.agent.params.stds]
+        t = self.agent.default_name = "DEEPSSRL"
+
+        if t:
+            lib = torch
+            mlist = self.agent.params.means_torch
+            slist = self.agent.params.stds_torch
+        else:
+            lib = np
+            mlist = self.agent.params.means
+            slist = self.agent.params.stds
+
+
+        self.means_eligibility_traces_running_sum = [lib.zeros(m.shape) for m in mlist]
+        self.stds_eligibility_traces_running_sum = [lib.zeros(s.shape) for s in slist]
 
     def setObservation(self, observation):
         """
@@ -294,6 +307,7 @@ class SSRL(Agent):
 
         self.NNET.setWeights(action_weights)
         layer_activations = self.episode.callForward()
+        action = int(np.argmax(layer_activations[-1]) + 1)  # +1 because of the game code
 
         if self.decay is not None:
             self.episode.means_eligibility_traces_running_sum *= self.decay  # Apply reward decay
@@ -307,7 +321,7 @@ class SSRL(Agent):
             self.episode.means_eligibility_traces_running_sum[weight_layer] += chi * diff_mean
             self.episode.stds_eligibility_traces_running_sum[weight_layer] += chi * (np.abs(diff_mean) - self.params.stds[weight_layer])
 
-        return int(np.argmax(layer_activations[-1]) + 1)  # +1 because of the game code
+        return action
 
     def giveReward(self, reward):
 

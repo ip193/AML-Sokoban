@@ -28,10 +28,12 @@ class FFNN(nn.Module):
 
     def setWeights(self, weights):
         """
-        Set each layer's .weight.data attributes (using the result of Gaussian sampling)
+        Set each layer's .weight.data attributes (using the result of Gaussian sampling) and replace them with
+        the parameter object from the nn.Module
         :param params:
         :return:
         """
+        new_weights = []
         for ind, p in enumerate(self.parameters()):
             bias = ((ind + 1) % 2 == 0)
             ind = ind//2  # we need to separate the bias column from the weights
@@ -39,6 +41,11 @@ class FFNN(nn.Module):
                 p.data = weights[ind][:, :-1]
             else:
                 p.data = weights[ind][:, -1].view(-1)
+            new_weights.append(p)
+
+        weights.clear()
+        weights += new_weights  # here we replace the tensors produced by Gaussian sampling with the objects
+        # stored in the NNET's parameters because we want to access their .grad values later
 
     def forward(self, input):
         """
@@ -50,29 +57,20 @@ class FFNN(nn.Module):
 
         all_activations = []
         activation = input
+        activation.requires_grad = True
 
         for ind, l in enumerate(self.layers):
-
-            if self.bias:
-                all_activations.append(torch.cat((activation, torch.tensor([1.]))))
-
-            else:
-                all_activations.append(activation)
 
             # Note: In contrast to the standard FFNN, we do not add the bias value in-place,
             # because torch methods implicitly add the bias node.
 
+            all_activations.append(activation)
             activation = l(activation)  # bias has already been configured for this layer
             if ind != len(self.layers)-1:
                 activation = self.nonlinearity(activation)
                 # we want the argmax and tanh is strictly increasing
 
-        if self.bias:
-            all_activations.append(torch.cat((activation, torch.tensor([1.]))))
-
-        else:
-            all_activations.append(activation)
-
+        all_activations.append(activation)
         return all_activations
 
 
