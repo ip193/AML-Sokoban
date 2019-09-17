@@ -7,6 +7,7 @@ import gzip
 import marshal
 import pickle
 import time
+import portalocker
 
 import numpy as np
 from gym_sokoban.envs import SokobanEnv
@@ -319,88 +320,86 @@ def save_data(outfile_name, states, room_structures, distances, actions):
     # save data
     print("Saving training states:", outfile_name)
 
-    done = [False]
+    assert len(states) == len(room_structures) == len(distances) == len(actions)
+    filenames = [f'./train/states_{outfile_name}.npy', f'./train/room_structures_{outfile_name}.npy', f'./train/distances_{outfile_name}.npy', 
+                 f'./train/actions_{outfile_name}.npy']
+    objs = [states, room_structures, distances, actions]
+
     for i in range(FILE_TRIES):
         try:
-            with gzip.open(f'./train/states_{outfile_name}.pkl.gz', 'wb') as f:
-                pickle.dump(states, f, pickle.HIGHEST_PROTOCOL)
-
-            with gzip.open(f'./train/distances_{outfile_name}.pkl.gz', 'wb') as f:
-                pickle.dump(distances, f, pickle.HIGHEST_PROTOCOL)
-
-            with gzip.open(f'./train/actions_{outfile_name}.pkl.gz', 'wb') as f:
-                pickle.dump(actions, f, pickle.HIGHEST_PROTOCOL)
-
-            with gzip.open(f'./train/room_structures_{outfile_name}.pkl.gz', 'wb') as f:
-                pickle.dump(room_structures, f, pickle.HIGHEST_PROTOCOL)
-
-            done[0] = True
-        except:
+            with portalocker.Lock(filenames[0], mode='wb', timeout=SLEEP_TIME) as lf:
+                np.save(lf, np.asarray(objs[0]))
+                if len(filenames) > 1:
+                    for ind, name in enumerate(filenames[1:]):
+                        with portalocker.Lock(name, mode='wb', timeout=SLEEP_TIME) as lf:
+                            np.save(lf, np.asarray(objs[ind+1]))
+        except Exception as e:
+            print(e)
             print("Failure saving training states. Retrying: ")
             time.sleep(SLEEP_TIME)
 
-        if done[0]:
-            print("Training states saved.")
-            print("Database size:", len(states))
-            break
-    return states, room_structures, distances, actions
+        print("Training states saved.")
+        print("Database size:", len(states))
+        return states, room_structures, distances, actions
 
-def load_data(infile:str):
+    raise IOError("Unable to save states, room_structures, distances, actions.")
+
+def load_data(infile:str, aslist=True, folder='./train/'):
     """
     Load data from files
     :param infile: Filename
     :return:
     """
 
+    filenames = [f'{folder}states_{infile}.npy', f'{folder}room_structures_{infile}.npy', f'{folder}distances_{infile}.npy',
+                 f'{folder}actions_{infile}.npy']
+
     print("Loading states, room_structures, distances, actions")
-    done = [False]
-    ret = []
     for i in range(FILE_TRIES):
         try:
-            ret.clear()
-            # IMPORTANT: Maintain the order of the following loads
-            with gzip.open(f'./train/states_{infile}.pkl.gz', 'rb') as f:
-                states = pickle.load(f)
-                ret.append(states)
+            files = []
+            def load(lf):
+                if aslist:
+                    return list(np.load(lf))
+                else:
+                    return np.load(lf)
+            with portalocker.Lock(filenames[0], mode='rb', timeout=SLEEP_TIME) as lf:
+                files.append(load(lf))
+                if len(filenames) > 1:
+                    for name in filenames[1:]:
+                        with portalocker.Lock(name, mode='rb', timeout=SLEEP_TIME) as lf:
+                            files.append(load(lf))
 
-            with gzip.open(f'./train/room_structures_{infile}.pkl.gz', 'rb') as f:
-                room_structures = pickle.load(f)
-                ret.append(room_structure)
+            print("Finished loading states, room_structures, distances, actions")
+            (states_, room_structures_, distances_, actions_) = tuple(files)
+            print("Database size:", len(states_))
+            assert len(states_) == len(room_structures_) == len(distances_) == len(actions_)
 
-            with gzip.open(f'./train/distances_{infile}.pkl.gz', 'rb') as f:
-                distances = pickle.load(f)
-                ret.append(distances)
+            return states_, room_structures_, distances_, actions_
 
-            with gzip.open(f'./train/actions_{infile}.pkl.gz', 'rb') as f:
-                actions = pickle.load(f)
-                ret.append(actions)
-
-            done[0] = True
-
-        except:
+        except Exception as e:
+            print(e)
             print("Failure loading states, room_structures, distances, actions, retrying:")
             time.sleep(SLEEP_TIME)
 
-        if done[0]:
-            print("Finished loading states, room_structures, distances, actions")
-            print("Database size:", ret[0].shape[0])
-            break
-    states, room_structures, distances, actions = ret[0], ret[1], ret[3], ret[3]
-    return states, room_structures, distances, actions
-
+    raise e
 
 if __name__ == '__main__':
-    env = SokobanEnv(dim_room=(10, 10), max_steps=200, num_boxes=3, num_gen_steps=None, reset=False)
+    env = SokobanEnv(dim_room=(7, 7), max_steps=200, num_boxes=2, num_gen_steps=None, reset=False)
 
     states, room_structures, distances, actions = [], [], [], []
     weird_states = []  # used for debugging
 
-    infile = None # FIXME: Change this to add to existing database
-    outfile_name = "main"
+    infile = "main7x7-2"  # FIXME: Change this to add to existing database
+    outfile_name = "main7x7-2"
 
     if infile is not None:
         outfile_name = infile
-        states, room_structures, distances, actions = load_data(infile)
+        if os.path.exists(f'./train/states_{infile}.npy'):
+            states, room_structures, distances, actions = load_data(infile)
+        else:
+            print("Warning: Infile database doesn't exist, starting new database in", SLEEP_TIME, "seconds.")
+            time.sleep(SLEEP_TIME)
 
     n_training_data = int(1e4)  # generate this many data
     save_every = 40  # save after this many games have been added
@@ -440,12 +439,6 @@ if __name__ == '__main__':
                 state[old_4] = 3  # FIXME Here we swap the values to be like the game
                 state[old_3] = 4  # FIXME
 
-                # # FIXME debugging below
-                # num_boxes_on_target = int(np.sum(state == 3))
-                # total_boxes = int(np.sum((state == 3) | (state == 4)))
-                # if distance == 1 and (num_boxes_on_target != 2 or total_boxes != 3):  # enforce the right number of boxes
-                #     weird_states.append((state, distance, room_structure))  # error here
-                #     pass
         else:
             pass # print('🚨', 'could not solve a puzzle... skipping...')
 
@@ -454,7 +447,5 @@ if __name__ == '__main__':
             save_data(outfile_name, *drop_duplicate_states(states, room_structures, distances, actions, look_at_last=save_every))  # evaluate and save
 
     print('len(states)', len(states))
-
-    # TODO remove duplicate state with bigger distance (Done: Jakob)
 
     save_data(outfile_name, *drop_duplicate_states(states, room_structures, distances, actions, look_at_last=save_every))

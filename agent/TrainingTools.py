@@ -7,16 +7,17 @@ import gzip
 import os
 from tqdm import tqdm
 import threading
-
+from gym_sokoban.envs import SokobanEnv
 from data.generate_data import get_box_mapping
 from agent.Agent import FILE_TRIES, SLEEP_TIME
+from data.generate_data_Jakob_debug import load_data
 
 class TrainingTools:
     """
     Hold training loop and info for Agent-like algorithms
     """
 
-    def __init__(self, agents, steps=100, save_every=100, reload_every=None):
+    def __init__(self, agents, grid_size=7, num_boxes=2, steps=100, save_every=100, reload_every=None):
         """
 
         :param steps: How many steps per episode
@@ -25,6 +26,8 @@ class TrainingTools:
         """
 
         self.steps = steps
+        self.grid_size = grid_size
+        self.num_boxes = num_boxes
 
         self.agents = agents
         self.save_every = save_every
@@ -35,7 +38,7 @@ class TrainingTools:
         self.protocol = None  # this becomes a 2-tuple of lists
         # first list holds numbers of steps, second list holds number of training instances to look at at this distance
 
-    def setData(self, filename, fileEnding=".pkl.gz"):
+    def setData(self, filename, fileEnding=".pkl.gz", retry=1):
         """
         Set the training data for this training cycle.
         Note: distances[idx  - t] holds number of steps left to solution from states[idx - t]
@@ -48,28 +51,40 @@ class TrainingTools:
         self.data_fileEnding = fileEnding
 
         print("Setting training data:", self.data_filename)
-        def f_open(name):
+        def f_open(names):
             for i in range(FILE_TRIES):
+                ret = []
                 try:
-                    if fileEnding == ".pkl.gz":
-                        with gzip.open('../data/train/' + name + '_' + self.data_filename + self.data_fileEnding, 'rb') as f:
-                            ret = pickle.load(f)
-                            return ret
+                    for name in names:
+                        if fileEnding == ".pkl.gz":
+                            with gzip.open('../data/train/' + name + '_' + self.data_filename + self.data_fileEnding, 'rb') as f:
+                                ret.append(pickle.load(f))
 
-                    if fileEnding == ".npy":
-                        ret = np.load('../data/train/' + name + '_' + self.data_filename + self.data_fileEnding)
-                        return ret
+                        elif fileEnding == ".npy":
+                            ret.append(np.load('../data/train/' + name + '_' + self.data_filename + self.data_fileEnding))
 
-                    else:
-                        raise RuntimeError("Invalid file ending received: "+fileEnding)
-                except EOFError:
+                        else:
+                            raise RuntimeError("Invalid file ending received: "+fileEnding)
+
+                    return tuple([np.asarray(v) for v in ret])
+
+                except Exception as e:
+                    print(e)
                     print("Training data access failed. Retrying:")
                     time.sleep(SLEEP_TIME)
 
+            raise IOError("Unable to access training data.")
 
-
-        self.states, self.room_structures, self.distances = np.asarray(f_open("states")), \
-                                np.asarray(f_open("room_structures")), np.asarray(f_open("distances"))
+        names = ("states", "room_structures", "distances")
+        (self.states, self.room_structures, self.distances, actions) = load_data(self.data_filename, aslist=False,  # f_open(names)
+                                                                                 folder='../data/train/')
+        try:
+            assert(self.states.shape[0] == self.room_structures.shape[0] == self.distances.shape[0])
+        except AssertionError as e:
+            if retry == 0:
+                raise e
+            print("Warning: Reloaded database with faulty sizes. Retrying: ", retry)
+            self.setData(filename, fileEnding, retry=retry-1)
         print("Database size:", self.states.shape[0])
 
     def setProtocol(self, steps:list, training_volume:list):
@@ -132,8 +147,12 @@ class TrainingTools:
 
             envs.clear()
             for agent in self.agents:
-                envs.append(gym.make(env_name))
 
+                # envs.append(gym.make(env_name, dim_room=(self.grid_size, self.grid_size),
+                #                     num_boxes=self.num_boxes))
+
+                envs.append(SokobanEnv(dim_room=(self.grid_size, self.grid_size),
+                                     num_boxes=self.num_boxes))  # FIXME
             print("Starting training at", step_distance, "steps from solution.")
             # for tau in tqdm(range(training_volume)):  # for this many episodes
             for tau in range(training_volume):
@@ -151,7 +170,7 @@ class TrainingTools:
                     for t in range(step_distance*5):  # for this many steps
                         agent.giveObservation(self.getState(env))
                         action = agent.act()
-                        agent.actions.append(action) # FIXME
+                        agent.actions.append(action)  # FIXME
                         observation, reward, done, info = env.step(action)
                         agent.giveReward(reward)
                         agent.incrementTimeStep()
@@ -159,14 +178,14 @@ class TrainingTools:
                         if done:
                             break
 
-                    agent.endOfEpisodeUpdate()
+                    agent.endOfEpisodeUpdate(step_distance)
 
                 episodes += 1
 
                 if episodes % self.save_every == 0:
                     print("Saving agents.", episodes)
                     for agent in self.agents:
-                        print("Total episodes for agent:", len(agent.history.past_rewards))  # FIXME Doesn't work for non-SSRL
+                        print("Total episodes for agent:", sum([len(agent.history.past_rewards[step_dist]) for step_dist in agent.history.past_rewards]))  # FIXME Doesn't work for non-SSRL
                         agent.save()
                 if self.reload_every is not None and episodes % self.reload_every == 0:
                     print("Reloading data.", episodes)
@@ -181,9 +200,9 @@ class TrainingThread(threading.Thread):
     """
     Runs training in its own thread (should pass agents list with only one element)
     """
-    def __init__(self, agents, steps=100, save_every=100, reload_every=None):
+    def __init__(self, agents, **kwargs): # steps=100, save_every=100, reload_every=None):
         super().__init__()
-        self.training_tools = TrainingTools(agents, steps=steps, save_every=save_every, reload_every=reload_every)
+        self.training_tools = TrainingTools(agents, **kwargs)  #  steps=steps, save_every=save_every, reload_every=reload_every)
 
     def run(self):
         print("Thread starting: ", self.training_tools.agents[0].name)

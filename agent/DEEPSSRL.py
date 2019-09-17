@@ -131,30 +131,27 @@ class DEEPSSRL(SSRL):
 
         return action
 
-    def endOfEpisodeUpdate(self):
+    def endOfEpisodeUpdate(self, step_distance):
 
         """
         Apply the parameter update rules to means and standard deviations
         :return:
         """
 
-        avg = self.history.getPastAverage()
-        r = np.sum(self.episode.rewards)
-
-        self.history.past_rewards.append(r)
+        r, avg = self.reward_get(step_distance)
 
         factor = self.learning_rate*(r - avg)
 
         #  Apply the parameter update rules
         for ind, m in enumerate(self.params.means_torch):
 
-            m += factor*self.episode.means_eligibility_traces_running_sum[ind]
-            self.params.means[ind] = m.detach().numpy()
+            self.params.means_torch[ind] = m + factor*self.episode.means_eligibility_traces_running_sum[ind]
+            self.params.means[ind] = self.params.means_torch[ind].detach().numpy()
 
         for ind, s in enumerate(self.params.stds_torch):
 
-            s += factor*self.episode.stds_eligibility_traces_running_sum[ind]
-            self.params.stds_torch[ind] = torch.clamp(s, min=0.05, max=1.)
+            self.params.stds_torch[ind] = s + factor*self.episode.stds_eligibility_traces_running_sum[ind]
+            self.params.stds_torch[ind] = torch.clamp(self.params.stds_torch[ind], min=0.05, max=1.)
             self.params.stds[ind] = self.params.stds_torch[ind].detach().numpy()
 
 

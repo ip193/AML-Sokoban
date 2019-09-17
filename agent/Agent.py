@@ -7,7 +7,7 @@ from time import sleep
 import os
 
 FILE_TRIES = 3  # retry saving/loading in case of access conflicts
-SLEEP_TIME = 1  # seconds until retry
+SLEEP_TIME = 3  # seconds until retry
 
 class SaveInfo:
     """
@@ -100,7 +100,7 @@ class Agent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def endOfEpisodeUpdate(self):
+    def endOfEpisodeUpdate(self, **kwargs):
         """
         Update parameters after the conclusion of an episode.
         :return:

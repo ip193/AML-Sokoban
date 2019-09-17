@@ -15,7 +15,7 @@ class Episode:
     def __init__(self, agent):
         self.rewards = None
         self.means_eligibility_traces_running_sum, self.stds_eligibility_traces_running_sum = None, None
-        #  These matrices hold the running totals for (eligibility traces * reward decay) for each weight
+        #  These lists of matrices hold the running totals for (eligibility traces * reward decay) for each weight
         self.timeStep, self.episode_tag = None, None
 
         self.observation = None
@@ -45,7 +45,6 @@ class Episode:
             lib = np
             mlist = self.agent.params.means
             slist = self.agent.params.stds
-
 
         self.means_eligibility_traces_running_sum = [lib.zeros(m.shape) for m in mlist]
         self.stds_eligibility_traces_running_sum = [lib.zeros(s.shape) for s in slist]
@@ -158,26 +157,30 @@ class History:
     """
 
     def __init__(self):
-        self.past_rewards = []
+        self.past_rewards = {}
 
-    def getPastAverage(self, min_window=20, proportion=0.2):
+    def getPastAverage(self, step_distance, window_size=200):  # , proportion=0.2):
         """
         Return the average cumulative reward per episode in a set number of past games.
         :param window: Number of past games to consider
         :return:
         """
 
-        l = len(self.past_rewards)
-        if l == 0:
-            return 0
+        try:
+            r = self.past_rewards[step_distance]
+            l = len(r)
+            if l == 0:
+                return 0
 
-        if l < min_window:
-            return np.mean(self.past_rewards)
+            if l < window_size:
+                return np.mean(r)
 
-        window = max(min_window, int(l*proportion))
-        window = min(window, 200)  # look at most 2000 states into the past
+            # window = max(min_window, int(l*proportion))
+            # window = min(window, 200)  # look at most 2000 states into the past
 
-        return np.mean(self.past_rewards[-window:])
+            return np.mean(r[-window_size:])
+        except KeyError:
+            return 0.
 
 
 class SSRL(Agent):
@@ -241,7 +244,7 @@ class SSRL(Agent):
         :return:
         """
         self.name = self.default_name
-        for i in range(1, len(self.layers)-1):  # name is updated based on number of hidden layers
+        for i in range(0, len(self.layers)-1):  # name is updated based on number of hidden layers
             self.name += "_" + str(self.layers[i])
 
     # Abstract methods
@@ -327,17 +330,33 @@ class SSRL(Agent):
 
         self.episode.rewards.append(reward)
 
-    def endOfEpisodeUpdate(self):
+    def reward_get(self, step_distance):
+        """
+        Update and return rewards.
+        :param step_distance:
+        :return:
+        """
+
+        avg = self.history.getPastAverage(step_distance)
+        r = np.sum(self.episode.rewards)
+
+        try:
+            past = self.history.past_rewards[step_distance]
+            past.append(r)
+
+        except KeyError:
+            self.history.past_rewards[step_distance] = [r]
+
+        return r, avg
+
+    def endOfEpisodeUpdate(self, step_distance):
 
         """
         Apply the parameter update rules to means and standard deviations
         :return:
         """
 
-        avg = self.history.getPastAverage()
-        r = np.sum(self.episode.rewards)
-
-        self.history.past_rewards.append(r)
+        r, avg = self.reward_get(step_distance)
 
         factor = self.learning_rate*(r - avg)
 

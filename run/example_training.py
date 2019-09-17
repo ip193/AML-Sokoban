@@ -6,11 +6,13 @@ import numpy as np
 import torch
 
 
-agents = [DEEPSSRL(layers=(100, 10, 10, 4), nonlinearity=torch.tanh)]
+agents = [DEEPSSRL(layers=(49, 10, 10, 4), nonlinearity=torch.tanh),
+          DEEPSSRL(layers=(49, 10, 10, 10, 4), nonlinearity=torch.tanh),
+          DEEPSSRL(layers=(49, 10, 10, 10, 10, 4), nonlinearity=torch.tanh)]
 
 for ind, agent in enumerate(agents):
     agent.setParams()  # initialize layer weights randomly
-    agent.setSaveInfo(special_name_tag="torch_learner")
+    agent.setSaveInfo(special_name_tag="torch_learner_2")
     try:
         agents[ind] = agent.load()  # if this is executed, an existing agent is loaded and trained if possible
         print("Loaded:", agents[ind].name)
@@ -22,7 +24,7 @@ for ind, agent in enumerate(agents):
 for agent in agents:
 
     training = TrainingThread([agent], save_every=200, reload_every=400)
-    database = "main"
+    database = "main7x7-2"
     training.training_tools.setData(database)
     training.training_tools.setProtocol([1, 2, 3, 4], [1e5, 1e5, 1e5, 1e5])
 

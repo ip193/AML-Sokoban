@@ -12,7 +12,7 @@ class FFNN(nn.Module):
     def __init__(self, layer_sizes, nonlinearity, bias=True):
         """
         Customize pytorch-style ANN
-        :param layer_sizes: Layer sizes (should begin with 100 and end with 4)
+        :param layer_sizes: Layer sizes (should begin with (gridsize**2) and end with 4)
         :param nonlinearity: Of pytorch type
         :param bias: Add bias node to layers?
         """
