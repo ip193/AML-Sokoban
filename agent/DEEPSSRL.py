@@ -5,6 +5,7 @@ from agent.Agent import Agent
 from agent.SSRL import SSRL, Episode, History, Params
 from agent.torchFFNN import FFNN
 import numpy as np
+from run_files.config import dtype, cuda
 
 
 
@@ -47,7 +48,9 @@ class DEEPSSRL(SSRL):
         self.default_name = "DEEPSSRL"
         self.resetName()
 
-        self.NNET = FFNN(layers, self.nonlinearity, self.nnet_bias)
+        self.NNET = FFNN(layers, self.nonlinearity, self.nnet_bias)   # .cuda()
+        if cuda:
+            self.NNET.cuda()
 
         self.episode = Episode(self)
         self.params = params
@@ -64,18 +67,18 @@ class DEEPSSRL(SSRL):
 
     def giveObservation(self, observation):
         observation = observation.flatten()
-        observation = from_numpy(observation).float()
+        observation = from_numpy(observation).type(dtype)
         observation.unsqueeze(0)
         self.episode.setObservation(observation)
 
     def get_action_weights(self):
         a = super().get_action_weights()
-        a = [from_numpy(i).float() for i in a]
+        a = [from_numpy(i).type(dtype) for i in a]
         for w in a:
             w.requires_grad = True
         return a
 
-    def act(self):
+    def act(self, test=False):
 
         observation = self.episode.getObservation()
 
@@ -87,6 +90,10 @@ class DEEPSSRL(SSRL):
 
         layer_activations = self.NNET.forward(observation)
         action = int(torch.argmax(layer_activations[-1]) + 1)
+
+        if test:
+            # don't change anything
+            return action
 
         if self.decay is not None:
             self.episode.means_eligibility_traces_running_sum *= self.decay  # Apply reward decay
@@ -131,14 +138,18 @@ class DEEPSSRL(SSRL):
 
         return action
 
-    def endOfEpisodeUpdate(self, step_distance):
+    def endOfEpisodeUpdate(self, step_distance, test=False):
 
         """
         Apply the parameter update rules to means and standard deviations
         :return:
         """
 
-        r, avg = self.reward_get(step_distance)
+        r, avg = self.reward_get(step_distance, test=test)
+
+        if test:
+            # don't change or update anything
+            return
 
         factor = self.learning_rate*(r - avg)
 

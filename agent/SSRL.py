@@ -5,6 +5,7 @@ from torch import from_numpy
 
 from agent.Agent import Agent
 from agent.FFNN import FFNN
+from run_files.config import dtype
 
 
 class Episode:
@@ -147,9 +148,9 @@ class Params:
         :return:
         """
         for m in self.means:
-            self.means_torch.append(from_numpy(m).float())
+            self.means_torch.append(from_numpy(m).type(dtype))
         for s in self.stds:
-            self.stds_torch.append(from_numpy(s).float())
+            self.stds_torch.append(from_numpy(s).type(dtype))
 
 class History:
     """
@@ -157,7 +158,8 @@ class History:
     """
 
     def __init__(self):
-        self.past_rewards = {}
+        self.training_rewards = {}
+        self.testing_rewards = {}
 
     def getPastAverage(self, step_distance, window_size=200):  # , proportion=0.2):
         """
@@ -167,7 +169,7 @@ class History:
         """
 
         try:
-            r = self.past_rewards[step_distance]
+            r = self.training_rewards[step_distance]
             l = len(r)
             if l == 0:
                 return 0
@@ -330,22 +332,28 @@ class SSRL(Agent):
 
         self.episode.rewards.append(reward)
 
-    def reward_get(self, step_distance):
+    def reward_get(self, step_distance, test=False):
         """
         Update and return rewards.
         :param step_distance:
         :return:
         """
-
         avg = self.history.getPastAverage(step_distance)
         r = np.sum(self.episode.rewards)
+        db = self.history.training_rewards if not test else self.history.testing_rewards
 
         try:
-            past = self.history.past_rewards[step_distance]
-            past.append(r)
+            past = db[step_distance]
+            if not test:
+                past.append(r)
+            else:
+                past.append((len(self.history.training_rewards[step_distance]), r))
 
         except KeyError:
-            self.history.past_rewards[step_distance] = [r]
+            if not test:
+                db[step_distance] = [r]
+            else:
+                db[step_distance] = [(0, r)]
 
         return r, avg
 

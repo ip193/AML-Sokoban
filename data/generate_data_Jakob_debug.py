@@ -14,7 +14,7 @@ from gym_sokoban.envs import SokobanEnv
 from gym_sokoban.envs.room_utils import room_topology_generation, box_displacement_score, ACTION_LOOKUP, reverse_move
 from tqdm import tqdm
 
-from agent.Agent import FILE_TRIES, SLEEP_TIME
+from run_files.config import FILE_TRIES, SLEEP_TIME
 
 
 def generate_env():
@@ -390,8 +390,8 @@ if __name__ == '__main__':
     states, room_structures, distances, actions = [], [], [], []
     weird_states = []  # used for debugging
 
-    infile = "main7x7-2"  # FIXME: Change this to add to existing database
-    outfile_name = "main7x7-2"
+    infile = "main7x7-2-TEST"  # FIXME: Change this to add to existing database
+    outfile_name = "main7x7-2-TEST"
 
     if infile is not None:
         outfile_name = infile

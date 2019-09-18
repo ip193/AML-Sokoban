@@ -1,13 +1,9 @@
 
 from abc import ABCMeta, abstractmethod
-import numpy as np
 import pickle
 from time import sleep
 
-import os
-
-FILE_TRIES = 3  # retry saving/loading in case of access conflicts
-SLEEP_TIME = 3  # seconds until retry
+from run_files.config import FILE_TRIES, SLEEP_TIME
 
 class SaveInfo:
     """
