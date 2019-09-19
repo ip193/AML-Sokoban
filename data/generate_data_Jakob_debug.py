@@ -18,7 +18,8 @@ from run_files.config import FILE_TRIES, SLEEP_TIME
 
 
 def generate_env():
-    return SokobanEnv(num_boxes=3, max_steps=200, reset=False)
+    return SokobanEnv(dim_room=(7, 7), max_steps=200, num_boxes=2, num_gen_steps=None, reset=False)
+    # FIXME Should num_gen_steps be false?
 
 
 def set_env_state(env, room_structures, states, idx):
@@ -385,13 +386,13 @@ def load_data(infile:str, aslist=True, folder='./train/'):
     raise e
 
 if __name__ == '__main__':
-    env = SokobanEnv(dim_room=(7, 7), max_steps=200, num_boxes=2, num_gen_steps=None, reset=False)
+    env = generate_env()
 
     states, room_structures, distances, actions = [], [], [], []
     weird_states = []  # used for debugging
 
-    infile = "main7x7-2-TEST"  # FIXME: Change this to add to existing database
-    outfile_name = "main7x7-2-TEST"
+    infile = "changed_generate_env_main7x7-2"  # FIXME: Change this to add to existing database
+    outfile_name = "changed_generate_env_main7x7-2" # FIXME: Name must end in -TEST for use as test db
 
     if infile is not None:
         outfile_name = infile

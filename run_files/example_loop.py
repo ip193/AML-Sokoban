@@ -4,12 +4,11 @@ import gym_sokoban
 import time
 
 
-env_name = 'Sokoban-v0'
+env_name = 'CartPole-v0'
 env = gym.make(env_name)
 
-ACTION_LOOKUP = env.unwrapped.get_action_lookup()
-print("Created environment: {}".format(env_name))
 
+print(env.observation_space)
 
 
 for i_episode in range(1):#20
@@ -26,7 +25,6 @@ for i_episode in range(1):#20
         time.sleep(1)
         observation, reward, done, info = env.step(action)
 
-        print(ACTION_LOOKUP[action], reward, done, info)
         if done:
             print("Episode finished after {} timesteps".format(t+1))
             env.render()

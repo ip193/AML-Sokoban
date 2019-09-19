@@ -32,12 +32,14 @@ class SaveInfo:
                 break
 
     def load(self):
+        print("Loading agent:", self.filename)
         for i in range(FILE_TRIES):
             try:
                 with open(self.dir + "/" + self.filename+".pkl", "rb") as pickle_in:
                     return pickle.load(pickle_in)
-            except:
-                print("Agent loading failed, retrying:", self.agent.name)
+            except Exception as e:
+                print(e)
+                print("Agent loading failed, retrying...")
                 sleep(SLEEP_TIME)
                 pass
         raise FileNotFoundError("Agent not found.")

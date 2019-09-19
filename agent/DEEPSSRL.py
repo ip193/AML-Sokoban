@@ -26,7 +26,7 @@ class DEEPSSRL(SSRL):
     Implements multi-layered Stochastic Synapse Reinforcement Learning
     """
     def __init__(self, layers=(100, 100, 50, 4), nnet_bias=True, nonlinearity=torch.tanh, params=None, learning_rate=0.5,
-                 decay=None):
+                 decay=None, use_abs_update=True):
         """
          Provide information about the neural network architecture and set up basic data structures
          :param layers: Layer sizes (first element is flattened input size, last element is flattened output size)
@@ -44,6 +44,7 @@ class DEEPSSRL(SSRL):
         self.nonlinearity = nonlinearity
         self.learning_rate = learning_rate
         self.decay = decay
+        self.use_abs_update = use_abs_update
 
         self.default_name = "DEEPSSRL"
         self.resetName()
@@ -89,7 +90,7 @@ class DEEPSSRL(SSRL):
         self.NNET.setWeights(action_weights)
 
         layer_activations = self.NNET.forward(observation)
-        action = int(torch.argmax(layer_activations[-1]) + 1)
+        action = int(torch.argmax(layer_activations[-1]))  # FIXME Needs to be +1 for Sokoban
 
         if test:
             # don't change anything
@@ -115,8 +116,14 @@ class DEEPSSRL(SSRL):
             diff_std = (torch.abs(diff_mean) - self.params.stds_torch[weight_layer][:, :-1]) if not bias else (
                 (torch.abs(diff_mean) - self.params.stds_torch[weight_layer][:, -1])
             )
-            chi = torch.abs(layer_activations[weight_layer]) if not bias else torch.ones(param_object.size())
-            # chi = torch.cat((chi.detach(), torch.tensor([1.])))  # add the bias again for a simple expression
+
+            if bias:
+                chi = torch.ones(param_object.size())
+            else:
+                if self.use_abs_update:
+                    chi = torch.abs(layer_activations[weight_layer])
+                else:
+                    chi = layer_activations[weight_layer]
 
             """
             We store all means and stds in a big matrix, and the last column are the bias values (we used to append 1. 

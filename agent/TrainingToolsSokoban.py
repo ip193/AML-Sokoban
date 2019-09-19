@@ -28,13 +28,13 @@ class RetryFail:
             raise excp
 
 
-class TrainingTools:
+class TrainingToolsSokoban:
     """
     Hold training loop and info for Agent-like algorithms
     """
 
     def __init__(self, agents, grid_size=7, num_boxes=2, steps=100, save_every=100, reload_every=None,
-                 test_every=50):
+                 test_every=50, game_name='Sokoban'):
         """
 
         :param steps: How many steps per episode
@@ -51,11 +51,15 @@ class TrainingTools:
         self.reload_every = reload_every
         self.test_every = test_every
 
+        self.game_name = game_name
+
         self.states, self.room_structures, self.distances = None, None, None  # Hold training data
         self.states_test, self.room_structures_test, self.distances_test = None, None, None
 
         self.protocol = None  # this becomes a 2-tuple of lists
         # first list holds numbers of steps, second list holds number of training instances to look at at this distance
+
+        self.game_dict = {"Sokoban": SokobanEnv}
 
     def setData(self, filename):
         """
@@ -171,7 +175,7 @@ class TrainingTools:
             # envs.append(gym.make(env_name, dim_room=(self.grid_size, self.grid_size),
             #                     num_boxes=self.num_boxes))
 
-            envs.append(SokobanEnv(dim_room=(self.grid_size, self.grid_size)))
+            envs.append(self.game_dict[self.game_name](dim_room=(self.grid_size, self.grid_size)))
 
 
     def runTraining(self):
@@ -180,8 +184,6 @@ class TrainingTools:
         :param reload: If not None, reload training data after this many games (allows for parallel data generation and loading)
         :return:
         """
-
-        env_name = 'Sokoban-v0'
         envs = []
 
         episodes = 0
@@ -247,13 +249,13 @@ class TrainingTools:
             for agent in self.agents:
                 agent.save()
 
-class TrainingThread(threading.Thread):
+class TrainingThreadSokoban(threading.Thread):
     """
     Runs training in its own thread (should pass agents list with only one element)
     """
     def __init__(self, agents, **kwargs): # steps=100, save_every=100, reload_every=None):
         super().__init__()
-        self.training_tools = TrainingTools(agents, **kwargs)  #  steps=steps, save_every=save_every, reload_every=reload_every)
+        self.training_tools = TrainingToolsSokoban(agents, **kwargs)  #  steps=steps, save_every=save_every, reload_every=reload_every)
 
     def run(self):
         print("Thread starting: ", self.training_tools.agents[0].name)
