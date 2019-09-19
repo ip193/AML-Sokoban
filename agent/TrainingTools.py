@@ -16,12 +16,14 @@ from data.generate_data_Jakob_debug import load_data
 class RetryFail:
     def __init__(self):
         self.ENV_FAILURE_RETRIES = 2
+        self.failed_this_tau = False
 
     def env_fail(self, excp):
         if self.ENV_FAILURE_RETRIES > 0:
             print(excp)
             print("Warning: Environment failure encountered, retrying: ")
             self.ENV_FAILURE_RETRIES -= 1
+            self.failed_this_tau = True
         else:
             raise excp
 
@@ -158,6 +160,20 @@ class TrainingTools:
 
         return env.room_state
 
+    def refillEnvs(self, envs):
+        """
+        Reset the array of Sokoban environments.
+        :param envs:
+        :return:
+        """
+        envs.clear()
+        for agent in self.agents:
+            # envs.append(gym.make(env_name, dim_room=(self.grid_size, self.grid_size),
+            #                     num_boxes=self.num_boxes))
+
+            envs.append(SokobanEnv(dim_room=(self.grid_size, self.grid_size)))
+
+
     def runTraining(self):
         """
         Execute the entire training process.
@@ -176,14 +192,7 @@ class TrainingTools:
 
             training_volume = self.protocol[1][ind_steps]
 
-            envs.clear()
-            for agent in self.agents:
-
-                # envs.append(gym.make(env_name, dim_room=(self.grid_size, self.grid_size),
-                #                     num_boxes=self.num_boxes))
-
-                envs.append(SokobanEnv(dim_room=(self.grid_size, self.grid_size),
-                                     num_boxes=self.num_boxes))  # FIXME
+            self.refillEnvs(envs)
             print("Starting training at", step_distance, "steps from solution.")
             # for tau in tqdm(range(training_volume)):  # for this many episodes
             for tau in range(training_volume):
@@ -216,17 +225,18 @@ class TrainingTools:
                     except TypeError as e:
                         env_fail.env_fail(e)
 
+                if env_fail.failed_this_tau:
+                    self.refillEnvs(envs)
+
                 episodes += 1
 
                 if episodes % self.save_every == 0:
                     print("Saving agents, resetting envs.", episodes)
-                    envs.clear()
+                    self.refillEnvs(envs)
                     # we clear the envs because env objects are buggy and sometimes fail
                     for agent in self.agents:
                         print("Total episodes for agent:", sum([len(agent.history.training_rewards[step_dist]) for step_dist in agent.history.training_rewards]))  # FIXME Doesn't work for non-SSRL
                         agent.save()
-                        envs.append(SokobanEnv(dim_room=(self.grid_size, self.grid_size),
-                                               num_boxes=self.num_boxes))
                 if self.reload_every is not None and episodes % self.reload_every == 0:
                     print("Reloading data.", episodes)
                     self.loadData()

@@ -12,7 +12,7 @@ agents = [DEEPSSRL(layers=(49, 10, 10, 4), nonlinearity=torch.tanh)]
 
 for ind, agent in enumerate(agents):
     agent.setParams()  # initialize layer weights randomly
-    agent.setSaveInfo(special_name_tag="torch_learner_3")
+    agent.setSaveInfo(special_name_tag="torch_learner_max_diff_new_learning_rate")
     try:
         agents[ind] = agent.load()  # if this is executed, an existing agent is loaded and trained if possible
         print("Loaded:", agents[ind].name)

@@ -95,46 +95,46 @@ class DEEPSSRL(SSRL):
             # don't change anything
             return action
 
+        diff_max = layer_activations[-1].max()
+
         if self.decay is not None:
             self.episode.means_eligibility_traces_running_sum *= self.decay  # Apply reward decay
             self.episode.stds_eligibility_traces_running_sum *= self.decay
 
-        for out_val in range(self.layers[-1]):  # backpropagate through each of the output nodes
-            self.NNET.zero_grad()
-            layer_activations[-1][out_val].backward(retain_graph=False if out_val == self.layers[-1] - 1 else True)
-            # retain the computational graph for intermediate for all but the last output
+        self.NNET.zero_grad()
 
-            for weight_layer, param_object in enumerate(action_weights):
+        diff_max.backward()
+        for weight_layer, param_object in enumerate(action_weights):
 
-                bias = (weight_layer % 2 == 1)  # this weight layer holds bias weights
-                weight_layer = weight_layer//2
+            bias = (weight_layer % 2 == 1)  # this weight layer holds bias weights
+            weight_layer = weight_layer//2
 
-                diff_mean = param_object - self.params.means_torch[weight_layer][:, :-1] if not bias else (
-                    param_object - self.params.means_torch[weight_layer][:, -1]
-                )
-                diff_std = (torch.abs(diff_mean) - self.params.stds_torch[weight_layer][:, :-1]) if not bias else (
-                    (torch.abs(diff_mean) - self.params.stds_torch[weight_layer][:, -1])
-                )
-                chi = torch.abs(layer_activations[weight_layer]) if not bias else torch.ones(param_object.size())
-                # chi = torch.cat((chi.detach(), torch.tensor([1.])))  # add the bias again for a simple expression
+            diff_mean = param_object - self.params.means_torch[weight_layer][:, :-1] if not bias else (
+                param_object - self.params.means_torch[weight_layer][:, -1]
+            )
+            diff_std = (torch.abs(diff_mean) - self.params.stds_torch[weight_layer][:, :-1]) if not bias else (
+                (torch.abs(diff_mean) - self.params.stds_torch[weight_layer][:, -1])
+            )
+            chi = torch.abs(layer_activations[weight_layer]) if not bias else torch.ones(param_object.size())
+            # chi = torch.cat((chi.detach(), torch.tensor([1.])))  # add the bias again for a simple expression
 
-                """
-                We store all means and stds in a big matrix, and the last column are the bias values (we used to append 1. 
-                to the input vector to absorb the bias. Now, we must manually separate the weight block from the bias column
-                and perform the updates separately.             
-                """
+            """
+            We store all means and stds in a big matrix, and the last column are the bias values (we used to append 1. 
+            to the input vector to absorb the bias. Now, we must manually separate the weight block from the bias column
+            and perform the updates separately.             
+            """
 
-                update_means = self.episode.means_eligibility_traces_running_sum[weight_layer][:, :-1] if not bias else (
-                    self.episode.means_eligibility_traces_running_sum[weight_layer][:, -1]
-                )
-                update_stds = self.episode.stds_eligibility_traces_running_sum[weight_layer][:, :-1] if not bias else (
-                    self.episode.stds_eligibility_traces_running_sum[weight_layer][:, -1]
-                )
+            update_means = self.episode.means_eligibility_traces_running_sum[weight_layer][:, :-1] if not bias else (
+                self.episode.means_eligibility_traces_running_sum[weight_layer][:, -1]
+            )
+            update_stds = self.episode.stds_eligibility_traces_running_sum[weight_layer][:, :-1] if not bias else (
+                self.episode.stds_eligibility_traces_running_sum[weight_layer][:, -1]
+            )
 
-                grad = param_object.grad
+            grad = param_object.grad
 
-                update_means += chi * (diff_mean * grad)
-                update_stds += chi * (diff_std * grad)
+            update_means += chi * (diff_mean * grad)
+            update_stds += chi * (diff_std * grad)
 
         return action
 
@@ -156,12 +156,12 @@ class DEEPSSRL(SSRL):
         #  Apply the parameter update rules
         for ind, m in enumerate(self.params.means_torch):
 
-            self.params.means_torch[ind] = m + factor*self.episode.means_eligibility_traces_running_sum[ind]
+            self.params.means_torch[ind] = m + self.learning_rate*(r - avg)*self.episode.means_eligibility_traces_running_sum[ind]
             self.params.means[ind] = self.params.means_torch[ind].detach().numpy()
 
         for ind, s in enumerate(self.params.stds_torch):
 
-            self.params.stds_torch[ind] = s + factor*self.episode.stds_eligibility_traces_running_sum[ind]
+            self.params.stds_torch[ind] = s + self.learning_rate*(r - avg)*self.episode.stds_eligibility_traces_running_sum[ind]
             self.params.stds_torch[ind] = torch.clamp(self.params.stds_torch[ind], min=0.05, max=1.)
             self.params.stds[ind] = self.params.stds_torch[ind].detach().numpy()
 

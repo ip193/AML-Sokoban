@@ -10,8 +10,7 @@ import sklearn.kernel_ridge as krr
 from sklearn.gaussian_process import GaussianProcessRegressor
 
 # Note: This is NOT the name of the data used. A single agent can learn from different datasets.
-name = "torch_learner_3"
-
+name = "torch_learner_max_diff"
 
 load_agents = [DEEPSSRL(layers=(49, 10, 10, 4), nonlinearity=torch.tanh)]
           #DEEPSSRL(layers=(49, 10, 10, 10, 4), nonlinearity=torch.tanh),
@@ -26,7 +25,7 @@ kernel = sklearn.gaussian_process.kernels.RBF()
 agent_regressors = [[LinearRegression(fit_intercept=False), LinearRegression(fit_intercept=False)]  # , krr.KernelRidge(kernel="rbf", alpha=0.3, gamma=300), GaussianProcessRegressor(kernel)]
                     for a in load_agents]
 
-poly_n = 1
+poly_n = 12
 step_distance = 1
 
 def build_poly_features(points, n):
@@ -39,8 +38,8 @@ def build_poly_features(points, n):
 def fit_agent_regression(load_agent_ind, step_distance, data_subset=100):
 
     y = np.asarray(load_agents[load_agent_ind].history.training_rewards[step_distance]).reshape(-1)
-    X = build_poly_features(list(range(y.size)), poly_n)
-    # FIXME technically inaccurate because there are testing episodes in between
+    not_tests = list(range(y.size))
+    X = build_poly_features(not_tests, poly_n)
     data_length = y.size
 
     s = np.arange(0, data_length, data_subset)  # select a subset of the data so fitting doesn't take so long
