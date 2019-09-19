@@ -151,7 +151,7 @@ def search_way(start_env, model, epsilon=0.000000001, weight=1, progress_bar_upd
         if current.done:
             steps = []
             while current_md5 in came_from:
-                steps.extend(actions[current_md5])
+                steps.append(actions[current_md5])
                 current_md5 = came_from[current_md5]
 
             progress_bar.update(counter % progress_bar_update_iterations)
@@ -177,9 +177,7 @@ def search_way(start_env, model, epsilon=0.000000001, weight=1, progress_bar_upd
                 came_from[neighbor_env_md5] = current_md5
                 gscore[neighbor_env_md5] = tentative_g_score
                 fscore[neighbor_env_md5] = tentative_g_score * weight + heuristic(neighbor_env, model)
-                if neighbor_env_md5 not in actions:
-                    actions[neighbor_env_md5] = []
-                actions[neighbor_env_md5].append(action)
+                actions[neighbor_env_md5] = action
                 while fscore[neighbor_env_md5] in open_heap_fscore_set:
                     fscore[neighbor_env_md5] += epsilon
                 heappush(open_heap, (fscore[neighbor_env_md5], [neighbor_env.room_state, neighbor_env.room_fixed, neighbor_env.done]))
@@ -263,7 +261,7 @@ def search_way_parallel(start_env, model, epsilon=0.000000001, weight=1, progres
         if current.done:
             steps = []
             while current_md5 in came_from:
-                steps.extend(actions[current_md5])
+                steps.append(actions[current_md5])
                 current_md5 = came_from[current_md5]
 
             progress_bar.update(counter % progress_bar_update_iterations)
@@ -289,9 +287,7 @@ def search_way_parallel(start_env, model, epsilon=0.000000001, weight=1, progres
             if tentative_g_score < gscore.get(neighbor_env_md5, 0) or neighbor_env_md5 not in open_heap_md5_dict:
                 came_from[neighbor_env_md5] = current_md5
                 gscore[neighbor_env_md5] = tentative_g_score
-                if neighbor_env_md5 not in actions:
-                    actions[neighbor_env_md5] = []
-                actions[neighbor_env_md5].append(action)
+                actions[neighbor_env_md5] = action
 
                 temp_parallel.append([neighbor_env_md5, neighbor_env])
 
