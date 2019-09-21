@@ -36,7 +36,7 @@ class Episode:
         self.episode_tag = episode_tag  # parent class attributes
         self.observation = None
 
-        t = self.agent.default_name = "DEEPSSRL"
+        t = self.agent.default_name == "DEEPSSRL"
 
         if t:
             lib = torch
@@ -161,7 +161,7 @@ class History:
         self.training_rewards = {}
         self.testing_rewards = {}
 
-    def getPastAverage(self, step_distance, window_size=200):  # , proportion=0.2):
+    def getPastAverage(self, step_distance, window_size=200, proportion=0.2):
         """
         Return the average cumulative reward per episode in a set number of past games.
         :param window: Number of past games to consider
@@ -177,10 +177,9 @@ class History:
             if l < window_size:
                 return np.mean(r)
 
-            # window = max(min_window, int(l*proportion))
-            # window = min(window, 200)  # look at most 2000 states into the past
+            window = max(window_size, int(l*proportion))
 
-            return np.mean(r[-window_size:])
+            return np.mean(r[-window:])
         except KeyError:
             return 0.
 
@@ -191,7 +190,7 @@ class SSRL(Agent):
     """
 
     def __init__(self, layers=(100, 4), nnet_bias=True, nonlinearity=np.tanh, params=None, learning_rate=0.5, decay=None,
-                 as_in_paper=True, special_update=False):
+                 start_at_1=True, use_special_binary_output=False, use_argmax_out=True):
 
         """
         Provide information about the neural network architecture and set up basic data structures
@@ -201,6 +200,11 @@ class SSRL(Agent):
         :param params: If not None, use these parameters
         :param learning_rate: Learning rate for mean and standard deviations in formula
         :param decay: Rate of reward decay for computing updates (None => No decay)
+        :param start_at_1: Determines whether the output should be in [1, O] (else [0, O-1])
+        :param use_special_binary_output: This only applies when the output layer has 1 node. In this case, set to True if the
+        output should be mapped to [0, 1] == int(output_value >= 0)
+        :param use_argmax_out: True if the argmax of the final layer activation should be used as the output of the agent (
+        in consideration of start_at_1). Else give entire activation vector as np.array
         """
 
         super().__init__()
@@ -210,10 +214,12 @@ class SSRL(Agent):
         self.nonlinearity = nonlinearity
         self.learning_rate = learning_rate
         self.decay = decay
-        self.special_update = special_update  # apply the update from the paper or a different one
 
-        self.default_name = "SSRL" if as_in_paper else "SSRL_jakob_variant"
+        self.default_name = "SSRL"
         self.resetName()  #  add name info
+        self.start_at_1 = start_at_1
+        self.use_special_binary_output = use_special_binary_output
+        self.use_argmax_out = use_argmax_out
 
         self.NNET = FFNN(self.nonlinearity, self.nnet_bias)
 
@@ -296,7 +302,7 @@ class SSRL(Agent):
 
         return action_weights
 
-    def act(self):
+    def act(self, test=False):
 
         """
         Sample parameters from normal distributions according to formulae, record inputs/activation, store update information
@@ -312,7 +318,15 @@ class SSRL(Agent):
 
         self.NNET.setWeights(action_weights)
         layer_activations = self.episode.callForward()
-        action = int(np.argmax(layer_activations[-1]) + 1)  # +1 because of the game code
+        action = int(np.argmax(layer_activations[-1]) + int(self.start_at_1))  # +1 because of the game code
+
+        if self.use_special_binary_output:
+            assert layer_activations[-1].size == 1
+            action = int(layer_activations[-1][0] >= 0)
+
+        if test:
+            # don't change anything
+            return action
 
         if self.decay is not None:
             self.episode.means_eligibility_traces_running_sum *= self.decay  # Apply reward decay
@@ -321,7 +335,8 @@ class SSRL(Agent):
         for weight_layer, weights in enumerate(action_weights):
 
             diff_mean = weights - self.params.means[weight_layer]
-            chi = np.abs(layer_activations[weight_layer]) if self.special_update else layer_activations[weight_layer]
+            # chi = np.abs(layer_activations[weight_layer]) if self.special_update else layer_activations[weight_layer]
+            chi = layer_activations[weight_layer]
 
             self.episode.means_eligibility_traces_running_sum[weight_layer] += chi * diff_mean
             self.episode.stds_eligibility_traces_running_sum[weight_layer] += chi * (np.abs(diff_mean) - self.params.stds[weight_layer])
@@ -357,14 +372,18 @@ class SSRL(Agent):
 
         return r, avg
 
-    def endOfEpisodeUpdate(self, step_distance):
+    def endOfEpisodeUpdate(self, step_distance, test=False):
 
         """
         Apply the parameter update rules to means and standard deviations
         :return:
         """
 
-        r, avg = self.reward_get(step_distance)
+        r, avg = self.reward_get(step_distance, test=test)
+
+        if test:
+            # don't change anything
+            return
 
         factor = self.learning_rate*(r - avg)
 

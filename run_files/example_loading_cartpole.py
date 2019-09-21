@@ -14,7 +14,7 @@ names = [# "CartPoleLearner",
          "CartPoleLearnerNoAbs"]
 
 load_agents = [# DEEPSSRL(layers=(4, 10, 10, 2), nonlinearity=torch.tanh),
-               DEEPSSRL(layers=(4, 10, 10, 2), nonlinearity=torch.tanh, use_abs_update=False)]
+               DEEPSSRL(layers=(4, 10, 10, 2), nonlinearity=torch.tanh, use_abs_chi=False)]
           #DEEPSSRL(layers=(49, 10, 10, 10, 4), nonlinearity=torch.tanh),
           #DEEPSSRL(layers=(49, 10, 10, 10, 10, 4), nonlinearity=torch.tanh)]
 

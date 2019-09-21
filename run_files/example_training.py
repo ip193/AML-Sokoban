@@ -7,10 +7,11 @@ import torch
 
 
 agents = [#DEEPSSRL(layers=(49, 10, 10, 4), nonlinearity=torch.tanh),
-          DEEPSSRL(layers=(49, 10, 10, 4), nonlinearity=torch.tanh)]
+          SSRL(layers=(49, 4), nonlinearity=np.tanh)]
 
 names = [# "torch_learner_max_diff",
-         "master"]
+         "shallow"]
+
 for ind, agent in enumerate(agents):
     agent.setParams()  # initialize layer weights randomly
     agent.setSaveInfo(special_name_tag=names[ind])

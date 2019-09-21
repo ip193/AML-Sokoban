@@ -9,17 +9,20 @@ class FFNN(nn.Module):
     torch-based NNET for backpropagation
     """
 
-    def __init__(self, layer_sizes, nonlinearity, bias=True):
+    def __init__(self, layer_sizes, nonlinearity, bias=True, apply_final_activation=False):
         """
         Customize pytorch-style ANN
         :param layer_sizes: Layer sizes (should begin with (gridsize**2) and end with 4)
         :param nonlinearity: Of pytorch type
         :param bias: Add bias node to layers?
+        :param apply_final_activation: If True, the activation function is applied to the last preactivations. (Should be
+        equivalent to (not self.use_argmax_out) in DEEPSSRL
         """
         super(FFNN, self).__init__()
         self.layers = []  # holds the actual computational layers
         self.nonlinearity = nonlinearity
         self.bias = bias
+        self.apply_final_activation = apply_final_activation
 
         for ind in range(len(layer_sizes))[:-1]:
             #  add the fully-connected layers
@@ -66,9 +69,9 @@ class FFNN(nn.Module):
 
             all_activations.append(activation)
             activation = l(activation)  # bias has already been configured for this layer
-            if ind != len(self.layers)-1:
+            if self.apply_final_activation or ind != len(self.layers)-1:
                 activation = self.nonlinearity(activation)
-                # we want the argmax and tanh is strictly increasing
+                # argmax is not affected by tanh layer
 
         all_activations.append(activation)
         return all_activations
