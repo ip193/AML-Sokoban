@@ -200,32 +200,33 @@ class TrainingToolsSokoban:
             for tau in range(training_volume):
                 env_fail = RetryFail()
                 for ind_envs, env in enumerate(envs):  # each agent
-                    try:
-                        testing = False
-                        if (episodes + 1) % self.test_every == 0:
-                            start = np.random.choice(test_sample)
-                            testing = True
-                        else:
-                            start = np.random.choice(sample)
+                    # try:
+                    testing = False
+                    if (episodes + 1) % self.test_every == 0:
+                        start = np.random.choice(test_sample)
+                        testing = True
+                    else:
+                        start = np.random.choice(sample)
 
-                        self.initialize_to_state(env, start)
+                    self.initialize_to_state(env, start)
 
-                        agent = self.agents[ind_envs]
-                        agent.resetEpisode()
+                    agent = self.agents[ind_envs]
+                    agent.resetEpisode()
 
-                        for t in range(step_distance*5):  # for this many steps
-                            agent.giveObservation(self.getState(env))
-                            action = agent.act(test=testing)
-                            observation, reward, done, info = env.step(action)
-                            agent.giveReward(reward)
-                            agent.incrementTimeStep()
+                    for t in range(step_distance*5):  # for this many steps
+                        agent.giveObservation(self.getState(env))
+                        action = agent.act(test=testing)
+                        observation, reward, done, info = env.step(action)
+                        agent.giveReward(reward)
+                        agent.incrementTimeStep()
 
-                            if done:
-                                break
+                        if done:
+                            break
 
-                        agent.endOfEpisodeUpdate(step_distance, test=testing)
-                    except TypeError as e:
-                        env_fail.env_fail(e)
+                    agent.endOfEpisodeUpdate(step_distance, test=testing)
+
+                    # except TypeError as e:
+                    #     env_fail.env_fail(e)
 
                 if env_fail.failed_this_tau:
                     self.refillEnvs(envs)

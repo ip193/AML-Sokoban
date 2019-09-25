@@ -1,0 +1,7 @@
+SSRL_49_shallow - Shallow network trained with the exact algorithm and architecture from the paper. (diff_by_all=True) (Model created before impl. of "start_at_1", but just leave the parameter unspecified to load it with the correct default "True" value). Shouldn't matter for plotting history 
+
+
+SSRL_4_shallowCartPole - (start_at_1=False, use_special_binary_output=True)
+
+DEEPSSRL_4_10_10_deepCartPole_1_out - (nonlinearity=torch.tanh, start_at_1=False, use_special_binary_output=True,
+                   use_abs_chi=True, use_abs_val_of_grad=True)  (This is wrong because I didn't use the last tanh activation)

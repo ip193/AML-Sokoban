@@ -1,0 +1,76 @@
+
+
+
+1. Introduce SSRL
+
+	- All update rules and eligibility traces
+	- Architecture used in the paper
+	- Show first emails
+
+2. Discuss performance of single layer architecture
+
+2. Talk about adapting to the paper
+
+	- Show following email transcript
+	- Generalization to multi-layer case
+
+3. Discuss results for Sokoban
+
+4. Discuss results for an alternative problem
+
+5. Discuss problems with Sokoban
+
+	- Sokoban classes are buggy and hard to use
+	- No easy way to get data at a certain distance from the goal
+	- Output was wrong, for instance 3 and 4 were switched, and it wasn't clear in how many places in the code it needed to be changed. 
+	- No easy way to reset the environment to a certain state, needed to manually implement it
+	- Still, the environment automatically generates a state when initialized, making training unnecessarily slow, blowing up memory use and effectively making multithreaded training of multiple agents impossible on a normal laptop. 
+
+	- Code was of generally low quality, very difficult to understand and use, making debugging very difficult
+	- For example: OpenAi gym specification usually calls for discrete output to be in range(num_outputs), but the Sokoban gym begins at 1. This creates incompatibilities between different OpenAi games that cannot be elegantly fixed. 
+	- Show example of spaghetti code (Outputs from 1 to 8) 
+
+	- All of the above meant states needed to be generated and then saved manually, which was difficult to do and caused problems and lots of work with file access, etc. Further problems: Sokoban environments tend to crash when computer is near full memory use. The problem ballooned out of control in terms of how much work was required to solve it in proportion to how complex the algorithm actually is. 
+
+5. Critical discussion of the algorithm
+
+6. Discuss problems during implementation
+
+	First: Technical difficulties
+
+		- Using torch and numpy and switching between the two
+		- Using torch: It was difficult to access and change the parameter data for neural nets using a custom update formula
+		- For instance, to use the nn.Module neural net class with bias=True in the linear layers, the network returns the weights and the bias vector as seperate "parameter" objects (but saves them as part of a single linear layer). This was difficult because in my previous implementation, the bias vector was appended as a column to the weight matrix, and the bias node was a "1." float appended to the activation of each layer. This meant that the update formula specifically needed to account for whether the parameter in question was a weight matrix of a bias column, which would not have been necessary had they been stored together as one block. 
+
+		- Because of this, extra steps were needed to access and update the Parameter objects by reading the last column of the stored (+1 column) weight matrix, and then at the end of the episode accessing the parameter objects and writing them back into the weight matrix. 
+
+		- Finally, weight sampling was implemented in numpy, specifically using numpy's "apply along axis" function, meaning parameters also needed to be stored as numpy arrays concurrently to being stored as torch tensors. 
+
+		- The reason I left it like this was because I neither wanted to change the structure of my implementation up until that point, because it would have required rewriting the way the algorithm fundamentally worked and I was not close to being done, but I also didn't want to stop using nn.Module because I wanted to be sure that backpropagation would work properly and efficiently. 
+
+		- The actually suitable continuous control problems are unavailable on Windows
+
+	Second: Theoretical difficulties
+
+	- Algorithm is poorly suited to a "classification", discrete output problem
+
+		- The algorithm tends to develop anomalous large values in the weights when differentiating by max
+		- These huge values cause the network to always output the same value
+		- differentiating by "max" causes almost all weights not to be updated, and changes undertaken are not sufficient to break out of the single-output problem
+		- Result: Training stalls out and doesn't progress
+
+		- Necessary solution: Update all weights at once according to the formula (as in paper)
+		- But: This defies intuition, because some weights "voted against" the final argmax output choice but are updated positively as long as the network suggests the rights thing overall
+		- 
+
+	- 
+
+
+
+Philosophical problems with the algorithm: 
+
+
+How can the algorithm really tackle credit assignment if we don't know which output node actually earned the reward? In situations where rewards depend on the value of just one output node, for instance where a particular node must have the largest activation value, the update rule would update even those weights which would increase the output value for the wrong node. 
+
+
+Points of failure: If rewards have high variance, initializing "average reward" function early in algorithm

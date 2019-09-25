@@ -1,0 +1,664 @@
+\documentclass{article}
+
+
+\usepackage{arxiv}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{lipsum}
+\usepackage{algorithm2e}
+\usepackage[export]{adjustbox}
+
+
+\usepackage{hyperref}
+\usepackage{caption}
+\usepackage{graphicx}
+\usepackage{subfig}
+\usepackage{amsmath} % binom
+
+\DeclareMathOperator*{\argmax}{argmax} % thin space, limits underneath in displays
+\DeclareMathOperator*{\E}{\mathbb{E}}
+\newcount\colveccount
+\newcommand*\colvec[1]{
+        \global\colveccount#1
+        \begin{pmatrix}
+        \colvecnext
+}
+\def\colvecnext#1{
+        #1
+        \global\advance\colveccount-1
+        \ifnum\colveccount>0
+                \\
+                \expandafter\colvecnext
+        \else
+                \end{pmatrix}
+        \fi
+}
+
+\title{Solving Sokoban}
+
+
+\author{
+  David S.~Hippocampus \\
+  Department of Computer Science\\
+  Cranberry-Lemon University\\
+  Pittsburgh, PA 15213 \\
+  \texttt{hippo@cs.cranberry-lemon.edu} \\
+  %% examples of more authors
+   \And
+ Elias D.~Striatum \\
+  Department of Electrical Engineering\\
+  Mount-Sheikh University\\
+  Santa Narimana, Levand \\
+  \texttt{stariate@ee.mount-sheikh.edu} \\
+  %% \AND
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+  %% \And
+  %% Coauthor \\
+  %% Affiliation \\
+  %% Address \\
+  %% \texttt{email} \\
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\lipsum[1]
+\end{abstract}
+
+
+% keywords can be removed
+\keywords{First keyword \and Second keyword \and More}
+
+
+\section{Introduction}
+\lipsum[2]
+
+\subsection{Sokoban}
+Sokoban is a puzzle/planning game, in which the player has to push boxes (in a warehouse) onto given (storage) locations. Any can be pushed onto any as there are no predefined target fields for the object to be moved . The boxes can only be pushed and not pulled by the player; it is not possible to move several at the same time. Some actions are not reversible, and mistakes can make the puzzle unsolvable, e.g., when a box is pushed into a corner.
+There restrictions force the player to plan several moves in advance. An example of a Sokoban game can be seen in~\autoref{fig:sokoban}.
+
+\begin{figure}[ht]
+    \centering
+    \subfloat[start state]{{\includegraphics[width=4cm]{images/introduction/sokoban/sokoban_start.png} }}
+    \qquad
+    \subfloat[end state]{{\includegraphics[width=4cm]{images/introduction/sokoban/sokoban_end.png} }}
+    \caption{start and end state of an exemplary Sokoban game}
+    \label{fig:sokoban}
+\end{figure}
+
+Sokoban puzzles are hard to solve as they have sparse rewards, big search graphs with cycles and have been shown to be PSPACE-complete \cite{culberson_sokoban_1997}. Due to these characteristics, random actions have a very low probability of success. This makes solving Sokoban puzzles a interesting area of research.
+
+Since random game states may not be solvable (e.g. a box is stuck in a corner), game states are created by starting from the solved state and making random reverse moves (pulling boxes). For the implementation of the algorithms \cite{SchraderSokoban2018} is used as a baseline.
+
+The complexity of the game increases with the number of boxes (= $b$) and the number of spaces that the player can move (= $a$)according to~\autoref{eq:sokoban}. This means that a game with 3 boxes and 21 spaces the player can move to (e.g. in a game with the grid size of 7x7) has 23,940 possible states. But a game with about double the amount of spaces the player can move to (e.g. in a game with the grid size of 10x10) has 447,720 possible states which is more than 18 times more states.
+
+\begin{equation} \label{eq:sokoban}
+a\binom{a-1}{b}
+\end{equation}
+
+In order to compare the different approaches a test dataset of 100 games for each room type has been created, see~\autoref{tab:generate_sokoban_room_types}.
+
+\begin{table}[ht]
+ \caption{Test dataset for different room types.}
+  \centering
+  \begin{tabular}{lrrl}
+    \toprule
+    Room type & grid size & \# boxes & comment\\
+    \midrule
+    Sokoban-v0 & 10x10 & 3 & \\
+    Sokoban-v1 & 10x10 & 4 & as used in XX\\
+%    Sokoban-v2 & 10x10 & 5 & \\
+    Sokoban-small-v0 & 7x7 & 2 & \\
+    Sokoban-small-v1 & 7x7 & 3 & \\
+    Boxoban (medium) & 10x10 & 4 & published by \cite{boxobanlevels}\\
+    Boxoban (hard) & 10x10 & 4 & published by \cite{boxobanlevels}\\
+    \bottomrule
+  \end{tabular}
+  \label{tab:generate_sokoban_room_types}
+\end{table}
+
+\section{Approaches}
+Three different approaches were tested to solve the game.
+
+\subsection{Deep reinforcement learning and search}
+In \cite{agostinelli_solving_2019} the authors suggest to combine deep learning with path finding methods to solve a rubik’s cube and other puzzle games like lights out and Sokoban.
+
+The current game state is entered into a deep neural network, which outputs the cost (necessary steps) to reach the goal.
+After training this so-called cost-to-go function, it is used as a heuristic to solve the puzzles with a weighted A* search. This algorithm is named DeepCubeA by the authors.
+
+\subsubsection{data generation}
+The in \cite{agostinelli_solving_2019} used Sokoban environment uses a $10\times{10}$ grid containing three boxes that an agent has to push to three targets. The data given to the cost-to-go function is of size 400 and contains four binary vectors of size 100 each that represent the position of the agent, boxes, targets and walls.
+
+Generating Sokoban environment of size $10\times{10}$ with three boxes is computational expensive, in the paper the authors used six GPUs used in parallel for data generation. In order to speed up the data generation a $7\times{7}$ grid with two boxes was chosen, this speeds up data generation by 100x (see~\autoref{tab:generate_sokoban_speed_compare}). The room type "adapted 'Sokoban-small-v0' with backtracking" only creates rooms that take a maximum of 10 steps to solve and also returns the steps in order to solve the game. This is needed to for the cost-to-go function. Data augmentation was used to generate eight times more data by mirroring images and rotating them 90 degrees. To further speedup data generation parts of the code have been implemented using Cython \cite{behnel2011cython}.
+
+\begin{table}[ht]
+ \caption{Compare the time to generate 100 Sokoban games.}
+  \centering
+  \begin{tabular}{lrr}
+    \toprule
+    Room type & time to generate 100 rooms & speedup vs. 'Sokoban-v0' \\
+    \midrule
+    'Sokoban-v0' ($10\times{10}$ with three boxes)& 308 s  & - \\
+    'Sokoban-small-v0' ($7\times{7}$ with two boxes)& 7 s & 44 \\
+    adapted 'Sokoban-small-v0' with backtracking & 3 s & $\sim$103  \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:generate_sokoban_speed_compare}
+\end{table}
+
+\subsubsection{cost-to-go function}
+Instead of using a lookup table that is unsuitable (as it is too large) for puzzles with large state spaces such as Sokoban, a deep neural network is trained to minimize the mean square error of the estimated cost-to-go value. The architecture for the deep neural network can be seen in~\autoref{tab:architecture_cost-to-go}, a residual block is shown in~\autoref{fig:residual_block}.
+
+\begin{minipage}{\textwidth}
+\vspace{0.2cm}
+\begin{minipage}[b]{0.39\textwidth}
+  \centering
+  \includegraphics[width=6cm]{images/approaches/deep_reinforcement_learning_and_search/ResidualBlock.png}
+  \vspace{1cm} % vcenter hack
+  \captionof{figure}{Residual Block as described in \cite{he_deep_2015}}
+  \label{fig:residual_block}
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.59\textwidth}
+  \centering
+
+  \begin{tabular}{lrr}
+    \toprule
+    Layer (type) & Input Shape & Output Shape \\
+    \midrule
+    Fully Connected & 196  & 5,000 \\
+    Batch Normalization & 5,000 & 5,000 \\
+    Rectified Linear Unit (ReLU) & 5,000 & 5,000\vspace{1mm}\\
+    
+    Fully Connected & 5,000  & 1,000 \\
+    Batch Normalization & 1,000 & 1,000 \\
+    Rectified Linear Unit (ReLU) & 1,000 & 1,000\vspace{1mm}\\
+    
+    Residual Block & 1,000 & 1,000 \\
+    Residual Block & 1,000 & 1,000 \\
+    Residual Block & 1,000 & 1,000 \\
+    Residual Block & 1,000 & 1,000\vspace{1mm}\\
+    
+    Fully Connected & 1,000  & 1 \\
+    \bottomrule
+  \end{tabular}
+
+  \captionof{table}{Architecture of cost-to-go function}
+  \label{tab:architecture_cost-to-go}
+\end{minipage}
+\vspace{0.5cm}
+\end{minipage}
+
+The network was trained with a batch size of 64 and the ADAM optimizer was used to minimize the mean square error. When training with a fixed number of states, the model already overfitted after a few epochs. To prevent this, new data is generated for each epoch, so that training with the same data is not repeated.
+
+\begin{figure}[ht]
+    \centering
+    \subfloat[Training and testing loss with a batch size of 64 each. The model was constructed as presented in the paper (see \autoref{tab:architecture_cost-to-go}). After 24 hours the loss dropped to 0.2.\label{fig:sokoban_cost_loss_longTraining}]{{\includegraphics[width=0.31\textwidth,trim={10mm 0 12mm 0},clip]{images/approaches/deep_reinforcement_learning_and_search/DAVI_steps_10_loss_longTraining_v2.pdf} }}
+    \quad
+    \subfloat[Training loss with a batch size of 64 and testing loss with a batch size of 1. Same model architecture as in Figure\autoref{fig:sokoban_cost_loss_longTraining}. It is clearly visible that the testing loss stays constant.\label{fig:sokoban_cost_loss_batch1}]{{\includegraphics[width=0.31\textwidth,trim={10mm 0 12mm 0},clip]{images/approaches/deep_reinforcement_learning_and_search/DAVI_steps_10_loss_batch1.pdf} }}
+    \quad
+    \subfloat[Training loss with a batch size of 64 and testing loss with a batch size of 1. Same model architecture as in \autoref{tab:architecture_cost-to-go} but without the normalization layers. Training is more unstable than in Figure\autoref{fig:sokoban_cost_loss_longTraining}, with random spikes in the loss. But in contrast to Figure\autoref{fig:sokoban_cost_loss_batch1} the testing loss drops to 0.5.\label{fig:sokoban_cost_loss_no_batchnorm}]{{\includegraphics[width=0.31\textwidth,trim={10mm 0 12mm 0},clip]{images/approaches/deep_reinforcement_learning_and_search/DAVI_steps_10_loss_longTraining_no_batchnorm_lim.pdf} }}
+    \caption{loss of different models with different batch sizes}
+    \label{fig:sokoban_cost_loss}
+\end{figure}
+
+The model had to be altered as the batch normalization layers during evaluation caused for wrong predictions when the batch size was not 64. Figure\autoref{fig:sokoban_cost_loss_longTraining} shows the results after 24h training, a minimum loss of 0.2 was reached. When trying to evaluate a single state with this model the predictions where always way off. In Figure\autoref{fig:sokoban_cost_loss_batch1} the same model can be seen but with a test batch size of 1. Here the problem is clearly visible, the training loss drops while the test loss stays constant. The model was altered and all batch normalization layers where removed after 13 hours, 750 epochs with 100,000 states each, the minimum loss reached was 0.5 with a test batch size of 1, see Figure\autoref{fig:sokoban_cost_loss_no_batchnorm}. Compared to Figure\autoref{fig:sokoban_cost_loss_longTraining} the training without the batch normalization layers is much more unstable and the loss does not drop as low as before.
+
+
+\begin{figure}[ht]
+    \centering
+    \subfloat[Prediction error on a $7\times{7}$ grid with two boxes. For 4 steps and fewer to solution the error is nearly 0 with a standard deviation of 1.\label{fig:sokoban_error_7_2}]{{\includegraphics[width=0.45\textwidth]{images/approaches/deep_reinforcement_learning_and_search/7x7_10_2_61128_error_bar.pdf} }}
+    \quad
+    \subfloat[Prediction error on a $7\times{7}$ grid with three boxes. The model is the same as for Figure\autoref{fig:sokoban_error_7_2}, trained on a $7\times{7}$ grid with only two boxes.\label{fig:sokoban_error_7_3}]{{\includegraphics[width=0.45\textwidth]{images/approaches/deep_reinforcement_learning_and_search/7x7_10_3_66312_error_bar.pdf} }}
+    \caption{Prediction error compared against steps (=distance) to solution}
+\end{figure}
+
+
+The model from Figure\autoref{fig:sokoban_cost_loss_no_batchnorm} was trained on a $7\times{7}$ grid with two boxes. The prediction error (prediction - real value) plot Figure\autoref{fig:sokoban_error_7_2} ($7\times{7}$ grid with two boxes) shows that for 0 to 4 steps the mean of the prediction error is near 0 and the standard deviation is about 1. These starts to increase with a maximum error of 0.4 and a standard deviation of 2 at 8 steps away from the solution. Trying to use the same model on a $7\times{7}$ grid with three boxes (see Figure\autoref{fig:sokoban_error_7_3}) shows the same prediction error and standard deviation only for 0 steps away from the solution. The prediction error and standard deviation increases with every step further away from the solution.
+
+
+
+
+
+
+% TODO check error for each distance (7x7 and 10x10)
+
+
+
+\subsubsection{A* search}
+Once a cost-to-go function has been learned, it can be used as a heuristic to search for a path between the start state and the destination state.
+
+In standard A* search the cost of a node $x$ is determined by the function $f(x)=g(x)+h(x)$ where $g(x)$ describes the previous costs from the start node to $x$ and $h(x)$ is the estimated cost (by the cost-to-go function (= heuristic)) from $x$ to the target node.
+
+The A* search keeps an "open" set from which it opens the node with the lowest cost/$f(x)$ value and expands the node.  The algorithm starts with only the start node in the "open" set. Once a node has been expanded, that node is moved to the "closed" set, and any subnodes/children that are not already in the "closed" set are added to the open set. Once the target node is removed from the "open" set, the algorithm terminates.
+
+The authors suggest in the paper to use weighted A* search since it trades potentially longer solutions for potentially less memory usage. This is achieved by weighting the previous costs from the start node to $x$ with a factor between zero and one, the so called path-cost coefficient $\lambda$. The function for weighted A* search is $f(x)=\lambda g(x)+h(x)$ with $\lambda\in[0,1]$. The use of the weighted A* search was not necessary in our implementation, since even very long searches did not use more than 3 GB of memory.
+
+% TODO: It’s also very important that the heuristic is always an underestimation of the total path, as an overestimation will lead to A* searching for through nodes that may not be the ‘best’ in terms of f value. (maybe -0.5?, so -MSE?)
+
+
+
+
+\subsubsection{Results}
+
+\begin{table}[ht]
+ \caption{Test dataset for different room types.}
+  \centering
+  \begin{tabular}{lrrl}
+    \toprule
+    Room type & avg. steps to solution & \% of explored states\\
+    \midrule
+    Sokoban-v0 & 25.53 & 18.65 \\
+    Sokoban-v1 & - & - \\
+    Sokoban-v2 & - & - \\
+    Sokoban-small-v0 & 11.44 & 31.60 \\
+    Sokoban-small-v1 & 16.73 & 5.41 \\
+    Boxoban (medium) & - & - \\
+    Boxoban (hard) & - & -\\
+    \bottomrule
+  \end{tabular}
+  \label{tab:deepcubea_results}
+\end{table}
+
+\subsection{Imagination-Augmented Agents / DeepCubeA with Imagination}
+
+Instead of a real env DeepCubeA should "imagine" the steps.
+
+\subsection{Approache 3}
+
+\section{Headings: first level}
+\label{sec:headings}
+
+\lipsum[4] See Section \ref{sec:headings}.
+
+\subsection{Headings: second level}
+\lipsum[5]
+\begin{equation}
+\xi _{ij}(t)=P(x_{t}=i,x_{t+1}=j|y,v,w;\theta)= {\frac {\alpha _{i}(t)a^{w_t}_{ij}\beta _{j}(t+1)b^{v_{t+1}}_{j}(y_{t+1})}{\sum _{i=1}^{N} \sum _{j=1}^{N} \alpha _{i}(t)a^{w_t}_{ij}\beta _{j}(t+1)b^{v_{t+1}}_{j}(y_{t+1})}}
+\end{equation}
+
+\subsubsection{Headings: third level}
+\lipsum[6]
+
+\paragraph{Paragraph}
+\lipsum[7]
+
+\section{Examples of citations, figures, tables, references}
+\label{sec:others}
+\lipsum[8] \cite{kour2014real,kour2014fast} and see \cite{hadash2018estimate}.
+
+The documentation for \verb+natbib+ may be found at
+\begin{center}
+  \url{http://mirrors.ctan.org/macros/latex/contrib/natbib/natnotes.pdf}
+\end{center}
+Of note is the command \verb+\citet+, which produces citations
+appropriate for use in inline text.  For example,
+\begin{verbatim}
+   \citet{hasselmo} investigated\dots
+\end{verbatim}
+produces
+\begin{quote}
+  Hasselmo, et al.\ (1995) investigated\dots
+\end{quote}
+
+\begin{center}
+  \url{https://www.ctan.org/pkg/booktabs}
+\end{center}
+
+
+\subsection{Figures}
+\lipsum[10] 
+See Figure \ref{fig:fig1}. Here is how you add footnotes. \footnote{Sample of the first footnote.}
+\lipsum[11] 
+
+\begin{figure}
+  \centering
+  \fbox{\rule[-.5cm]{4cm}{4cm} \rule[-.5cm]{4cm}{0cm}}
+  \caption{Sample figure caption.}
+  \label{fig:fig1}
+\end{figure}
+
+\subsection{Tables}
+\lipsum[12]
+See awesome Table~\ref{tab:table}.
+
+\begin{table}
+ \caption{Sample table title}
+  \centering
+  \begin{tabular}{lll}
+    \toprule
+    \multicolumn{2}{c}{Part}                   \\
+    \cmidrule(r){1-2}
+    Name     & Description     & Size ($\mu$m) \\
+    \midrule
+    Dendrite & Input terminal  & $\sim$100     \\
+    Axon     & Output terminal & $\sim$10      \\
+    Soma     & Cell body       & up to $10^6$  \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:table}
+\end{table}
+
+\subsection{Lists}
+\begin{itemize}
+\item Lorem ipsum dolor sit amet
+\item consectetur adipiscing elit. 
+\item Aliquam dignissim blandit est, in dictum tortor gravida eget. In ac rutrum magna.
+\end{itemize}
+
+\begin{document}
+
+
+\pagebreak
+\section{Stochastic Synapse Reinforcement Learning}
+
+Stochastic Synapse Reinforcement Learning (SSRL) is a reinforcement learning algorithm "for artificial neural networks (ANNs) to learn an episodic task in which there is discrete input with perceptual aliasing, continuous output, delayed reward, an unknown reward structure, and environmental change". [citation]
+
+This section will discuss the design of the algorithm, the training procedure used to adapt it to Sokoban, the experimental results observed, and further explorations that were made in light of those results . 
+
+The algorithm was selected for its problem-agnostic design, relative ease of implementation, and because its design specification (delayed reward, environmental change) appeared suitable for the Sokoban task. Finally, section \ref{sec:all_problems_ssrl} will discuss shortcomings of the algorithm and the author's implementation of its training and give a resumptive overview of the approach used.
+
+\subsection{Algorithm design}
+\subsubsection{Overview}
+
+\begin{equation} \label{eq:weight_sample}
+    \caption{Weights are sampled from a unique normal distribution at every timestep k. }
+    w_{ij} \sim \Psi(\mu_{ij}(k), \sigma_{ij}(k))
+\end{equation}
+
+In brief, the algorithm works by sampling neural network weights from a learned normal distribution (see \ref{eq:weight_sample}) at each time step in an episode and updating those distribution parameters (mean and standard deviation) at the end of the episode depending on 
+
+1) whether the performance in the episode using those sampled weights positively or negatively exceeded a past average reward
+
+and
+
+2) how much the sampled weights differed from the average values suggested by that weight's normal distribution at any given time step.  
+
+Because the algorithm associates each weight in the network with its own normal distribution and updates its parameters independently for their contribution to the network's output at every time step, it can address the problem of credit assignment on a per-node, per-timestep level.  
+
+\subsubsection{Detail}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=.8\textwidth,left]{images/One-Layer-NNET.PNG}
+    \caption{The single-layer architecture proposed in the paper.}
+    \label{fig:one_layer_ANN}
+\end{figure}
+
+The architecture proposed by Shah and Hougen uses a neural network with only an input layer and output layer, as well as a bias neuron (figure \ref{fig:one_layer_ANN}). In order to keep track of the behavior of a neuron during an episode, the authors define the  "eligibility trace" of a weight's parameters at a time step $k$ according to equations \ref{eq:elig_mu} and \ref{eq:elig_sigma}. Network input is denoted by $x$.
+
+\begin{equation} \label{eq:elig_mu}
+    e_{\mu, ij}(k) = x_i(k)\cdot(w_{ij}(k) - \mu_{ij}(k))
+\end{equation}
+
+\begin{equation} \label{eq:elig_sigma}
+    e_{\mu, ij}(k) = x_i(k)\cdot(|w_{ij}(k) - \mu_{ij}(k)| - \sigma_{ij}(k))
+\end{equation}
+
+The update formula for $\mu_{ij}$ applied at the end of an episode $\tau$ is shown in equation \ref{eq:weightupdate_mu} with parameters \textbf{learning rate} ($\eta_\mu, \eta_\sigma$) and \textbf{decay} ($d_\mu, d_\sigma$). Here, $t$ is the final episode length, $r(\tau)$ is the sum reward collected in this episode, and $\overline{r}(\tau)$ is an "average reward" computed over a sliding window of rewards earned in past episodes. The update formula for $\sigma_{ij}$ (equation \ref{eq:weightupdate_sigma}) has an additional clamping step (\ref{eq:weightupdate_sigma_clamp}) to control the maximum level of exploration, to prevent excessive divergence of the algorithm's weights. 
+
+\begin{equation} \label{eq:weightupdate_mu}
+    \mu_{ij}(\tau + 1) = \mu_{ij}(\tau) + \eta_\mu\cdot(r(\tau) - \overline{r}(\tau))\sum_{k=1}^{k=t}e_{\mu, ij}(k)d_\mu^{(t - k)}
+\end{equation}
+
+\begin{equation} \label{eq:weightupdate_sigma}
+    \widetilde{\sigma_{ij}}(\tau + 1) = \sigma_{ij}(\tau) + \eta_\sigma\cdot(r(\tau) - \overline{r}(\tau))\sum_{k=1}^{k=t}e_{\sigma, ij}(k)d_\sigma^{(t - k)}
+\end{equation}
+
+\begin{equation} \label{eq:weightupdate_sigma_clamp}
+    \sigma_{ij}(\tau + 1) = max(0.05 , min(1, \widetilde{\sigma_{ij}}(\tau + 1)))
+\end{equation}
+
+
+Observe that $\mu_{ij}$ is increased at the end of an episode \textbf{if and only if} $(r(\tau) - \overline{r}(\tau))$ and $\sum_{k=1}^{k=t}e_{\mu, ij}(k)d_\mu^{(t - k)}$ have the same sign when inputs are positive. Otherwise, it is decreased (analogously for $\widetilde{\sigma_{ij}}$). 
+
+By updating both $\mu_{ij}$ and $\sigma_{ij}$ separately, the algorithm can control its level of exploitation and exploration in search of an optimal policy - if weights very far from the mean are associated with higher sum reward, the standard deviation of the distribution is increased and the agent shifts its focus toward more exploration. If weights sampled on one side of the mean tend to do better than on another, the mean of the distribution is increased in that direction in order to increase the suitability of the current guess of the optimal policy. 
+
+\subsubsection{Training}
+
+To train the algorithm, the Sokoban environment was initialized to a board state from which a solution state could be reached in $step\_distance$ steps. The beginning training case is $step\_distance=1$. As soon as the algorithm is able to solve it consistently or a maximum number of training episodes have been reached, $step\_distance \leftarrow step\_distance+1$ and the process repeats with the new $step\_distance$. Games are truncated after reaching $step\_distance\cdot5$ steps to end obviously failed games at an appropriate time. 
+
+Generating these states was not straightforward and proved to be a major bottleneck in the implementation and success of this algorithm, as is described in section \ref{sec:game_troubles_sokoban}. 
+
+For simplicity, the game was played with a $7 \times 7$ board state and $2$ boxes. 
+
+Rewards were tallied at every step and delivered as a sum at the end of the episode according to the default settings of the Sokoban environment: 
+
+\begin{center}
+\begin{tabular}{ | l | r| } 
+\hline
+Complete the game & 10 \\ 
+\hline
+Move player & -0.1 \\ 
+\hline
+Move box onto goal & 1 \\ 
+\hline
+Move box off of goal & -1 \\
+\hline
+\end{tabular}
+\end{center}
+
+Input to the game was defined as \[\argmax_{out \in \{0, ..., O-1\}} x_{1, out}\] with $O = 4 = \#\{up, down, left, right\}$ and $x_1$ denoting the feed-forward output vector of the network. 
+
+Because the paper makes no mention of what the average reward should be for an empty list of past rewards (when accessing the past reward for the first time), the author chose to use the first reward, i.e. the current reward, as the "average past reward", which has less bias than using a default value like 0. This means that the update at the end of the first episode does not change the weight parameters. The average past reward $\overline{r}(\tau)$ was otherwise computed as the mean of the past $min(len(past\_rewards\_earned), max(200, int(0.2 \cdot len(past\_rewards\_earned))))$ games. 
+
+\textbf{Learning rate} and \textbf{decay} were set to $0.5$ and $1.$ (no decay), respectively. The former choice was used by the paper's authors in their experiment, and the latter was used because Sokoban episodes are very short and decay seemed unnecessary. 
+
+\subsection{Performance of the single-layer architecture} \label{sec:performance_shallow}
+
+When applying the algorithm to Sokoban, weight parameters were initialized with $\mu_{ij}$ uniformly randomly distributed in $[-1, 1]$ and $\sigma_{ij}$ uniformly distributed in $[0.05, 1]$. Note that the paper did not suggest any intialization principles for general use. The paper presented a simple robotic experiment in which the robot was expected to move forwards, so parameters were initialized with certain positive values because the researchers knew these were better suited to the task. Because the no beneficial initializations were known for Sokoban, a conservative zero-centered intialization was chosen. 
+
+The algorithm as presented in the paper using the intialization above failed to adequately solve the Sokoban task even for the simplest case $step\_distance=1$. Figure \ref{fig:shallow_performance_graph} shows stagnant training and testing reward over [how many] episodes using the architecture described in the paper.
+
+In the trivial case $step\_distance=1$, the game can always be solved by simply moving against the box adjacent to the player (thereby pushing the box onto its goal), but a single-layer network is not able to learn this nonlinear mapping. Much more interesting, then, is the question of how deeper networks trained using this algorithm would perform. 
+
+\subsection{Generalization to multiple layers} \label{sec:generalization}
+
+Preliminarily, it seems clear that a single-layer architecture is insufficient for combinatorial puzzles like Sokoban, as these games require the ability to make abstract inferences over combinations of multiple features (board tiles) in a way that is impossible with just a single layer. Because the paper only discusses a single-layer approach and makes no mention of generalization to multiple layers, expanding the architecture was a somewhat experimental task, even with the help of the authors.  
+
+Before reviewing the multi-layer update strategy, it is worth considering the intended function of this algorithm. The motivation behind formulae \ref{eq:elig_mu} and \ref{eq:elig_sigma} is to account for \textit{the influence a weight's deviation from its parameterization had on the output of the network}. This interpretation was confirmed to me by Hougen in an email exchange (figures \ref{fig:jakob_mail_1} and \ref{fig:hougen_mail_1}).
+
+As suggested in the first email (figure \ref{fig:jakob_mail_1}), this becomes more complicated with potentially negative inputs, and Hougen suggested that in such a case, one would replace $x_i(k)$ in formulae \ref{eq:elig_mu} and \ref{eq:elig_sigma} with $|x_i(k)|$ in order to maintain this effect.
+
+
+To begin with, a new update formula was needed which could be used in the multi-layer case. Subsequent emails with Hougen outlined the approach that was to be used (figures \ref{fig:jakob_mail_2} and \ref{fig:hougen_mail_2}): Eligibility traces for distributions parameters $\mu_{ij}$ and $\sigma_{ij}$ would be proportional to the gradients of the output nodes w.r.t the sampled weight at time step $k$. This requires backpropagation through the network for hidden layers.
+
+The new eligibility trace formula for weights in layer $b$ is described in equations \ref{eq:elig_grad_mu} and \ref{eq:elig_grad_sigma}, where $x_b$ is the vector of network layer activations (with input layer $b=0$ and output layer $b=H-1$), $b \in \{0, ..., H-1\}$ and $x_{H-1} \in \mathbb{R}^O$ (vectors indexed starting at 0). The network would use the same component-wise activation function $tanh(\cdot)$ as in the single-layer case. Note that $w_b$ is only defined for $b \in \{0, ... , H-2\}$. 
+
+\begin{equation} \label{eq:elig_grad_mu}
+    e_\mu_{b, ij}(k) = |x_{b-1, i}(k)|\cdot(w_{b, ij}(k) - \mu_{b, ij}(k))\cdot\sum_{out=0}^{O-1}\frac{\partial x_{H-1, out}}{\partial w_{b, ij}(k)}
+\end{equation}
+
+
+\begin{equation} \label{eq:elig_grad_sigma}
+    e_\sigma_{b, ij}(k) = |x_{b-1, i}(k)|\cdot(|w_{b, ij}(k) - \mu_{b, ij}(k)| - \sigma_{b, ij}(k))\cdot\sum_{out=0}^{O-1}\frac{\partial x_{H-1, out}}{\partial w_{b, ij}(k)}
+\end{equation}
+
+
+With this new update formula, the interpretation is again that differences of sampled weights from their mean $(w_{b, ij}(k) - \mu_{b, ij}(k))$ and $(|w_{b, ij}(k) - \mu_{b, ij}(k)| - \sigma_{b, ij}(k))$ are "experiments" of the network to discover beneficial parameter update directions (either greater or lesser), and the episode performance $(r(\tau) - \overline{r}(\tau))$ is feedback on the "result" of these experiments.
+
+The sum of the gradients is a new measure for how much influence this "experimental" weight change had on the output of the network. Updates to the weight parameters should be in proportion to how much of an effect changes to the weights have on the output, and whether that change is correlated with a positive or negative change in reward collected. The goal of the algorithm is to discover beneficial changes in the weight parameters through experiments (stochastic sampling) and observation of their outcomes.   
+
+\subsection{Performance of the multi-layer architecture} \label{sec:performance_deep_sokoban}
+
+\subsubsection{Sokoban}
+
+To test the function of the new update rules, the algorithm was initialized in the same fashion as in the single-layer case. Because initial testing would be restricted to $step\_distance=1$, a relatively shallow architecture with $layer sizes = (49, 100, 50, 10, 4)$ was chosen, because this was presumed to be enough to learn to move the agent in the direction of an adjacent box without slowing training down excessively through network depth. 
+
+The algorithm was not able to solve even the simplest training case for Sokoban. Figure \ref{fig:deep_ssrl_performance_sokoban_graph} shows the training and testing error in the Sokoban environment with $step\_distance=1$. Performance was equivalent to random play, even after [how many] episodes. 
+
+Some immediate explanations for this behavior come to mind: 
+
+1) The algorithm is not effective in this kind of task - it is meant for dynamic, continuous-output environments in which the entire output layer is used as input to a system (e.g. controlling a robot arm with $n$ degrees of freedom), whereas in Sokoban, \begin{equation*}
+    \argmax_{out \in \{0, ..., O-1\}} x_{H-1, out}
+\end{equation*}{} is used as game input. 
+
+2) The author did not implement the algorithm correctly. 
+
+3) The algorithm was appropriately chosen and correctly implemented, but training hyperparameters such as episodes in training, weight parameter initialization, or network depth were incorrectly chosen for the task. 
+
+These explanations, as well as further problems and questions are addressed in more detail the following section and in section \ref{sec:all_problems_ssrl}. 
+\subsubsection{Mountain Car}
+
+In order to evaluate whether it was the choice of game that caused the failure of the algorithm, a similar architecture with $layer sizes = (2, 10, 10, 10, 1)$ was used to learn the simple trial game Mountain Car (implemented in the OpenAi gym environment 'MountainCarContinuous-v0') with approximately continuous floating-point input and output. 
+
+Similarly disappointing performance (see figure \ref{fig:mountain_car_deep_graph}) suggests that the algorithm itself, either in its implementation or its design, is to blame. 
+
+\pagebreak
+
+\section{SSRL: Problems and Critical Discussion} \label{sec:all_problems_ssrl}
+
+\subsection{Algorithmic} \label{sec:algoproblems_ssrl}
+
+\subsubsection{Parameter divergence} \label{sec:algocritic_ssrl}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.45]{images/means_explosion.png}
+    \caption{Means explode in a 4 layer network}
+    \label{fig:means_diverging_ssrl}
+\end{figure}{}
+
+When training an agent using the algorithm, it could be observed (see figure \ref{fig:means_diverging_ssrl}) that, despite very conservative zero-centered initialization and clamping of standard deviations at the end of every episode, some means would begin to diverge to very large values, with this behavior getting more extreme as time went on. 
+
+This would lead to the effect that an agent would always make the same decision (i.e. the network would always produce the same arg max) over long periods of time spent training, because a single weight or group of weights would have an extreme influence on the output of the network. 
+
+This problem appears to occur for games like Sokoban in which all but few rewards are near zero and some are large. Of particular importance is the factor $(r(\tau) - \overline{r}(\tau))$ in weight updates \ref{eq:weightupdate_mu} and \ref{eq:weightupdate_sigma_clamp}: The average reward for random play in Sokoban is somewhere near $3.5$, and a successful completion of the game in one step gives 10.9 points. This means that for a game solved in a single step, which is about a quarter of the time for $step\_distance = 1$ with initial uninformed play, all weight means are incremented by their deviation from their mean $(w_{b, ij} - \mu_{b, ij}) =: y_{b, ij}$ multiplied by a factor of $10.9 - 3.5 \approx 7.4$, not yet considering gradients.
+
+This effect is drastically apparent in deep networks, which can hold thousands of weights and in which it is statistically likely that \textit{some} weight is very far from its mean, which essentially guarantees that at least some weight in the network will receive an inappropriately large update. 
+
+Consider the effect winning for the first time has on weight updates. Until then, the agent will have earned an average reward somewhere between $-0.5$ and $0.5$. Applying the factor $(r(\tau) - \overline{r}(\tau))$ represents $10.9$-fold multiplication of all eligibility traces and $y_{b, ij}$ values for the network. Making matters worse, the gradients for some weights may be large with initial random initialization, and are generally large when other means in the network are large, further increasing the size of the parameter update. All factors compounded together mean that some means may grow orders of magnitude greater in a single step, which in turn leads back to the original problem of potentially causing the network to produce the same arg max every time and getting stuck in a rut in which the average reward corresponds to random play, and about once every four games the algorithm wins, further increasing $\mu_{b, ij}$ magnitudes.
+
+Consider a particularly bad case that was observed in the 4-layer architecture used in training (figure \ref{fig:example_bad_step}): Because the agent had won its first game and lost the second game, weight updates were immediately multiplied by a factor on the order of $10$, resulting in an explosion in weight means by two orders of magnitude in a single step. 
+
+\begin{figure}%
+    \centering
+    \subfloat[Randomly initialized means in the first episode $\approx 0.$]{{\includegraphics[width=7cm]{images/means_initial_cropped.PNG} }}%
+    \qquad
+    \subfloat[At least two values on the order of $1e2$ at the end of the second episode]{{\includegraphics[width=7cm]{images/means_second_cropped.PNG} }}%
+    \caption{The results of a second episode update}%
+    \label{fig:example_bad_step}%
+\end{figure}
+
+It could also be observed that most $\sigma_{b, ij}$ values tended to approach $1.0$ or values close to it after thousands of episodes spent training, despite the fact that \[\forall\sigma_{ij} \in [0.05, 1], \forall\mu_{ij}\in\mathbb{R} : \E_{w_{ij}\sim\Psi(\mu_{ij} ,  \sigma_{ij})}[|w_{ij}(k) - \mu_{ij}(k)| - \sigma_{ij}(k)] < 0 \]
+
+This would be expected to lead to asymptotically convergent behavior of the algorithm as long as reward tends to improve over time, because it would mean that eligibility traces $e_{\sigma, b, ij}$ would tend to be negative, therefore leading to smaller variance in parameter sampling. However, because the algorithm did not improve, it had the effect of increasing variance. With increasing variance, weights vary even more, meaning that rare and random wins lead to even bigger explosions in $\mu_{b, ij}$ updates, further worsening the problem of exploding means in a vicious cycle of ineffective parameter updates. 
+
+\subsubsection{Efficacy of update formulae}
+
+It is the author's belief that one of the weakest links in the algorithm is in the update formulae for $\mu_{b, ij}$ and $\sigma_{b, ij}$ (both single and multi-layer versions). This is because credit assignment occurs only in a very loose way; the algorithm updates all weight parameters according to whether their deviations from normal behavior were observed to correlate with increased reward. This sounds appropriate in theory, but in practice the correlations between deviations $y_{b, ij}$ and $z_{b, ij} := |w_{ij}(k) - \mu_{ij}(k)| - \sigma_{ij}(k)$ and the weight configurations which resulted in high or low performance in an episode are too low for weight updates to be meaningful on non-asymptotic time scales. 
+
+For a game like Sokoban, this effect is compounded by the fact that it is the \textit{highest output value} which determines agent action choice. As long as $ \argmax x_{H-1}$ remains unchanged, any number of weight combinations will lead to the same agent behavior. This means that whenever the network produces the correct output decision, even those weights which "voted for" a different action are positively updated, and in fact, because weight updates are proportional to the gradient, weights which voted very strongly \textbf{against} the correct output are also updated very strongly in the direction of their vote. 
+
+The network learns only "more of this", whatever "this" was, without regard for whether more is always better or to what extent "this" even resulted in a highly rewarded action. 
+
+One could argue at this point that it is because Sokoban is a game with discrete output, where only the $\argmax$ is important, these considerations would apply differently in a more continuous game in which this algorithm is more "at home". Firstly, the algorithm was not successful in the "Mountain Car" trial game of this nature when evaluated.
+
+Secondly, imagine a hypothetical game in which an agent controls the virtual hand movement of a human player controlling a joystick at an arcade booth and receives the pixel output of the arcade booth at every timestep. The virtual human is playing the game Sokoban in the arcade booth; the agent's output into the game is a vector $x \in \mathbb{R}^4$: The virtual player moves the joystick in the direction of $\frac{y}{\lVert y \rVert }, y := \begin{pmatrix}x_0 + x_2 \\ x_1 + x_3\end{pmatrix}$, with $y = \begin{pmatrix}1\\0\end{pmatrix}$ corresponding to a movement of the joystick exactly to the right and $y = \begin{pmatrix}0\\1\end{pmatrix}$ corresponding to an upward movement (analogously for left and down). The virtual arcade booth then translates this joystick movement into an internal command converting the movement direction of the joystick into the closest move direction $d \in \{up, down, left, right\}$ within the game. 
+
+This would be a continuous-output game with hidden internal discretization of the input corresponding exactly to the setup from the original Sokoban game. Simply moving the nonlinear mapping $x\mapsto \argmax x$ from the agent design to the structure of the game itself turns Sokoban into a "continuous" task. Therefore, a black-and-white distinction between discrete and continuous games is not warranted (one could easily imagine a game that mixes discrete and continuous elements - for instance if the same hand which controls the joystick in one part of the game would then have to learn to carry a cup through the arcade without spilling its contents).  
+
+
+\subsection{Technical}
+
+\subsubsection{Training and game environments} \label{sec:game_troubles_sokoban}
+
+Much of the effort that went into this project was in manipulating the Sokoban game environment for training. The game environment provided by OpenAi's "gym" library was of poor code quality and didn't provide a simple way to initialize the game at a certain move distance from a solved state, as would usually be required in a learning task for this game. The authors found a code fragment online which randomly played games in reverse to move from a solved state to an unsolved state and returned the sequence of states and moves that yielded the final state. This output was used as the basis for training at a given $step\_distance$.
+
+However, the game environment didn't allow for simple initialization "to a given state", meaning that custom functions were needed to load and set the game state within the environment, as well as changing all internal variables of the game environment to ensure correct rewarding etc. This was not a trivial task, because the internal variables of the Sokoban environment were used in many places in complicated ways, and it wasn't initially clear how many such variables even existed. Classes and functions within the environment were only minimally documented, if at all.  
+
+These efforts were hamstrung at every step by minor bugs and inconsistencies in the game code; for instance, games generated by the above function had the error that fields containing a "box not on goal" were marked with the integer "3" and fields containing a "box on goal" were marked as "4", but the game environment itself represented game states with these two values switched! It was up to the user to discover this bug and then manually change the game state vectors (and other field values that relied on it) with the correct values. 
+
+Another annoying inconsistency was that the OpenAi specification for discrete game input asks that actions begin indexed at 0. However, the actions "push": up, down, left, right were numbered between 1 and 4, and the actions "move": up, down, left, right were numbered between 5 and 8. Action 0 was "wait". This makes no sense at all, because "wait" is never an appropriate action in Sokoban (unlike in a shooter game, for example), meaning it should not have been added or should at least have been moved to the last action, and it was up to the user to figure out that "move" is a completely superfluous input, because the action "push" internally calls the function "move" whenever there is no box adjacent to the agent in the move direction. This was annoying because other gym games have discrete output beginning at 0, so the user has to implement an if-else check to determine whether to add 1 to the game input or not. 
+
+Additionally, all gym environments were very slow and used extreme amounts of memory, meaning that it wasn't realistic to train agents in parallel on a standard laptop, not to mention generate games at the same time. Sokoban environments specifically tended to spontaneously crash due to a memory error, meaning the code needed to be failproofed in multiple locations to reload the environments in case of a memory exception. 
+
+All of this was compounded by the fact that much development work had to go into loading and accessing stored game states and randomly using them during training. In a perfect world, the gym library could be used to write a game loop that is 20 lines long, in which $environment.reset()$ accepts a parameter to specify to what step distance the game environment should be initialized. Instead, what was required was a relatively large engineering effort to coordinate data access and storage in order to not have to train the algorithm starting at 20+ moves from the destination. 
+
+Training and generating game states could be done in parallel with some engineering effort, but was still frustratingly inefficient because games were generated many more steps away from the solution than was needed (28 steps) both once during data generation \textit{as well as once during environment initialization from the environment's constructor}, meaning that the computational overhead just to play a single game was extremely large and involved multiple classes generating, saving, loading, and manually initializing the game environment for use.
+
+To what extent these problems came down to incompetence of the author is unclear; perhaps there was somewhere on the internet a guide which would have revealed a simpler way to load and set states. Close reviews of the game code and a good-faith effort to learn how to use the environment from online resources did not yield the understanding required to make using the Sokoban environment a simple task. 
+
+\subsubsection{Numerical libraries}
+
+Initially, the project was designed to rely on numpy for all data manipulation, Gaussian sampling, number generation, etc. This was entirely sufficient for the single-layer algorithm and was supported by the game environments, which internally saved game states and related vectors as numpy arrays. 
+
+Numpy also provided convenient methods for managing the parameters of the network. The initial approach was to interpret the entire set of neural network weights as a (reshaped and partitioned) vector sampled from a diagonal-covariance normal distribution, i.e. \[\boldsymbol{w_b} \sim \Psi(\boldsymbol{\mu_b}, diag(\boldsymbol{\sigma_b}))\] This approach was extremely slow, and it turned out to be much faster to use numpy's $apply\_along\_axis$ function and generating each weight as the output of a one-dimensional normal distribution.  
+
+When implementing the deep architecture, however, backpropagation through the network was required, so pytorch libraries were used to compute the gradients. This was done with the help of the nn.Module class, which is the pytorch class for simple construction of neural networks. All the mechanics for storing and sampling from the parameterized distributions of the network were already implemented in numpy, however, so functions were written to translate between tensors and arrays to take advantage of the existing classes for handling weight sampling. Despite the superfluous array copying this involved, numerical libraries only took up a small fraction of the runtime of the application, far outweighed by the slow game environments the agent interacted with. 
+
+Some difficulty was involved in accessing the internal tensors of the nn.Module child class which held the agent's ANN; linear layers stored the bias weights and the conventional weights in a separate $n \times 1$ vector and $n \times m$ matrix, respectively, whereas the design choice until then had been to store all weights in one $n \times (m+1)$ matrix, where bias nodes would be appended as a $1.$ value to the end of a layer's activation. When accessing the network's parameters for backpropagation, the method $net.parameters()$ iterated over the weight matrix and the bias vector of a weight layer separately, meaning that there was no longer a one-to-one correspondence in the data structure used by the agent to hold the weight parameters and the internals of the nn.Module class, and there was an overhead in translating and accessing the right data fields when applying the update rules of the algorithm. 
+
+
+NEW QUESTIONS: 
+
+1) You say we should use the "exact same update formula" for the last layer - is that with or without the switch to $|x_b(k)|$? Do the eligibility trace formulas in the hidden layers use $|x_b(k)|$ or $x_b(k)$?
+
+2) Why do the eligibility traces for the weights in the last layer of the network not consider the gradient of the activation function in the last layer, while the eligibility traces for the weights in hidden layers do use it? (This is referring to the description you gave in your last email)
+
+3) Are the above eligibility trace formulae for the multi-layer case correct?
+
+4) Does the structure of the Sokoban task (in which the output of the network must be an integer label in [0, 3] and the arg max of the net's output is chosen) affect the formula for the eligibility traces or any other part of the update rules used by the algorithm? I understand that the algorithm was designed for continuous control tasks and not this type of output, and I plan to test it on one such task as well. 
+
+5) The following question applies anaologously to the eligibility trace formula for the standard deviations: What do you think of the suggestion that one should take the absolute value of the sum of the gradients (rightmost factor in equation 7), and not only the sum of the gradients? This I suggest because we do not know whether increasing or decreasing the final output of a node in the last layer of the network is better; we only know how much of an effect a weight's deviation from its average $w_{b, ij}(k) - \mu_{b, ij}(k)$ had on the output of the network (which we know by approximation through the derivative). Using the current formula, an increase in the weight which was associated with increased reward would not necessarily lead to the mean for that weight being positively increased \textbf{if} the gradient is negative - this defies my intuitive understanding of what the eligibility traces are supposed to do. 
+
+The logic is: if we increased the weight relative to its mean and it had a big effect on the output of the network, we should increase it in that direction if that increase resulted in a greater reward (or lower it if it resulted in lesser reward), proportionately to how big the effect on the output was. 
+
+It doesn't matter whether the change in the weight resulted in the outputs in the last layer increasing or decreasing per se, what matters is \textit{how great of a change it was}, because we don't actually know whether a numerically greater or lesser output is preferred for an arbitrary task. We only know what direction we moved the weights in, how much of a difference it made, and whether we got a greater reward after doing it. In summary, the suggestion would be to take the absolute value of all factors except for $w_{b, ij}(k) - \mu_{b, ij}(k)$
+
+
+
+%\begin{figure}
+ %   \centering
+  %  \includegraphics{images/email1.PNG}
+   % \caption{Question 1}
+    %\label{fig:jakob_mail_1}
+%\end{figure}
+
+%\begin{figure}
+ %   \centering
+  %  \includegraphics{images/email2.PNG}
+   % \caption{Answer 1}
+    %\label{fig:hougen_mail_1}
+%\end{figure}{}
+ 
+
+%\begin{figure}
+ %   \centering
+  %  \includegraphics{images/email3.PNG}
+   % \caption{Question 2}
+    %\label{fig:jakob_mail_2}
+%\end{figure}{}
+
+
+%\begin{figure}
+ %   \centering
+  %  \includegraphics[width=.8\textwidth, left]{images/email4.PNG}
+   % \caption{Answer 2}
+    %\label{fig:hougen_mail_2}
+%\end{figure}{}
+
+
+\end{document}
+
+
+\bibliographystyle{unsrt}  
+\bibliography{references}
+
+\end{document}

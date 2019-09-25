@@ -1,4 +1,4 @@
-from agent.TrainingToolsSokoban import TrainingThreadSokoban
+from agent.TrainingToolsSokoban import TrainingThreadSokoban, TrainingToolsSokoban
 from agent.SSRL import SSRL
 from agent.DEEPSSRL import DEEPSSRL
 import pickle
@@ -6,11 +6,11 @@ import numpy as np
 import torch
 
 
-agents = [#DEEPSSRL(layers=(49, 10, 10, 4), nonlinearity=torch.tanh),
-          SSRL(layers=(49, 4), nonlinearity=np.tanh)]
+agents = [DEEPSSRL(layers=(49, 100, 50, 10, 4), nonlinearity=torch.tanh, show_max_mean=True)]
+          # SSRL(layers=(49, 4), nonlinearity=np.tanh)]
 
 names = [# "torch_learner_max_diff",
-         "shallow"]
+         "deepSokobanLikePaper_max_means"]
 
 for ind, agent in enumerate(agents):
     agent.setParams()  # initialize layer weights randomly
@@ -23,14 +23,30 @@ for ind, agent in enumerate(agents):
         print("Starting new agent:", agents[ind].name)
         pass
 
-for agent in agents:
 
-    training = TrainingThreadSokoban([agent], save_every=200, reload_every=None, test_every=10)
+threading = False
+
+
+protocol = ([1, 2, 3, 4], [1e5, 1e5, 1e5, 1e5])
+if threading:
+
+    for agent in agents:
+
+        training = TrainingThreadSokoban([agent], save_every=200, reload_every=None, test_every=10)
+        database = "changed_generate_env_main7x7-2"
+        training.training_tools.setData(database)
+        training.training_tools.loadData()
+        training.training_tools.loadData(test=True)
+        training.training_tools.setProtocol(*protocol)
+
+        training.start()  # start the thread
+
+else:
+
+    training = TrainingToolsSokoban([agents[0]], save_every=200, reload_every=None, test_every=10)
     database = "changed_generate_env_main7x7-2"
-    training.training_tools.setData(database)
-    training.training_tools.loadData()
-    training.training_tools.loadData(test=True)
-    training.training_tools.setProtocol([1, 2, 3, 4], [1e5, 1e5, 1e5, 1e5])
-
-    training.start()  # start the thread
-
+    training.setData(database)
+    training.loadData()
+    training.loadData(test=True)
+    training.setProtocol(*protocol)
+    training.runTraining()

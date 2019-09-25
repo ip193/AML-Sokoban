@@ -161,10 +161,11 @@ class History:
         self.training_rewards = {}
         self.testing_rewards = {}
 
-    def getPastAverage(self, step_distance, window_size=200, proportion=0.2):
+    def getPastAverage(self, step_distance, this_reward, window_size=200, proportion=0.2):
         """
         Return the average cumulative reward per episode in a set number of past games.
-        :param window: Number of past games to consider
+
+        :param this_reward: Reward earned in current episode - use as placeholder in case of empty past.
         :return:
         """
 
@@ -172,7 +173,7 @@ class History:
             r = self.training_rewards[step_distance]
             l = len(r)
             if l == 0:
-                return 0
+                return this_reward
 
             if l < window_size:
                 return np.mean(r)
@@ -181,7 +182,7 @@ class History:
 
             return np.mean(r[-window:])
         except KeyError:
-            return 0.
+            return this_reward
 
 
 class SSRL(Agent):
@@ -235,7 +236,7 @@ class SSRL(Agent):
     def setParams(self, params=None):
         """
         Set up parameter attributes (generate randomly unless otherwise specified)
-        :param p: Params object or None
+        :param params: Params object or None
         :return:
         """
 
@@ -353,8 +354,8 @@ class SSRL(Agent):
         :param step_distance:
         :return:
         """
-        avg = self.history.getPastAverage(step_distance)
         r = np.sum(self.episode.rewards)
+        avg = self.history.getPastAverage(step_distance, r)
         db = self.history.training_rewards if not test else self.history.testing_rewards
 
         try:

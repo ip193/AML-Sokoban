@@ -27,7 +27,7 @@ class DEEPSSRL(SSRL):
     """
     def __init__(self, layers=(100, 100, 50, 4), nnet_bias=True, nonlinearity=torch.tanh, params=None, learning_rate=0.5,
                  decay=None, use_abs_chi=True, diff_by_all=True, start_at_1=True, use_special_binary_output=False,
-                 use_abs_val_of_grad=False, use_argmax_out=True):
+                 use_abs_val_of_grad=False, use_argmax_out=True, show_max_mean=True):
         """
          Provide information about the neural network architecture and set up basic data structures
          :param layers: Layer sizes (first element is flattened input size, last element is flattened output size)
@@ -43,6 +43,7 @@ class DEEPSSRL(SSRL):
          of gradients.
          :param start_at_1: See SSRL
          :param use_argmax_out: If True, use the arg-max as the output (in consideration of start_at_1). Else give the whole vector as a np.array
+         :param show_max_mean: If True, notes the largest absolute value of a mean parameter in the network. Also notes largest gradients.
          """
 
         super(SSRL).__init__()  # get Agent attributes
@@ -61,6 +62,7 @@ class DEEPSSRL(SSRL):
         self.use_special_binary_output = use_special_binary_output
         self.use_abs_val_of_grad = use_abs_val_of_grad
         self.use_argmax_out = use_argmax_out
+        self.show_max_mean = show_max_mean
 
         self.NNET = FFNN(layers, self.nonlinearity, self.nnet_bias, apply_final_activation=not self.use_argmax_out)   # .cuda()
         if cuda:
@@ -69,6 +71,9 @@ class DEEPSSRL(SSRL):
         self.episode = Episode(self)
         self.params = params
         self.history = History()
+
+        if self.show_max_mean:
+            self.history.max_means = []
 
         if params is not None:
             params.checkParams()
@@ -209,5 +214,13 @@ class DEEPSSRL(SSRL):
             self.params.stds_torch[ind] = torch.clamp(self.params.stds_torch[ind], min=0.05, max=1.)
             self.params.stds[ind] = self.params.stds_torch[ind].detach().numpy()
 
+        if self.show_max_mean:
+            max = 0
+
+            for m in self.params.means:
+                if np.amax(np.abs(m)) > max:
+                    max = np.amax(np.abs(m))
+
+            self.history.max_means.append(max)
 
 

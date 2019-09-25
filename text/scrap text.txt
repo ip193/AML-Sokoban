@@ -1,0 +1,9 @@
+
+\subsubsection{Moving from shallow to deep networks}
+
+The author will state straight away that in hindsight, it was a mistake to stick with this algorithm for so long, simply because the paper did not offer a multi-layer architecture, and one was obviously needed to solve Sokoban. More time should have been invested in discovering alternative approaches; coauthor Perle discarded at least one algorithm before finding one which solved the game adequately - similar efforts should have been made here. 
+
+However, receiving a response from one of the coauthors of the SSRL paper served as a motivating blueprint to "make it work", and the initial explanation for how to generalize to multiple layers seemed fairly clear, conceptually, and not too hard to implement.
+
+The lack of mathematically explicit specification of the multi-layer algorithm and the sparsity of our email exchange overall meant that there was significantly more "figuring out" to be done than in the single-layer case, which was compactly described on 3 A4 pages. The author will say that he was concerned with asking few, but useful questions, so as not to waste the professor's time and to make the most of the information given. In a perfect world, the author would have had access either to a paper describing the multi-layer algorithm in detail or an in-person discussion with someone who knows how it is meant to work. 
+
