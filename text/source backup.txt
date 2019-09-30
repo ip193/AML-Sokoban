@@ -3,8 +3,8 @@
 
 \usepackage{arxiv}
 
-\usepackage[utf8]{inputenc} % allow utf-8 input
 \usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage[utf8]{inputenc} % allow utf-8 input
 \usepackage{hyperref}       % hyperlinks
 \usepackage{url}            % simple URL typesetting
 \usepackage{booktabs}       % professional-quality tables
@@ -13,14 +13,24 @@
 \usepackage{microtype}      % microtypography
 \usepackage{lipsum}
 \usepackage{algorithm2e}
+\SetAlCapSty{}
 \usepackage[export]{adjustbox}
+\usepackage{csquotes}
+\usepackage{listings}
+\usepackage{spverbatim}
 
+\usepackage[toc,page]{appendix}
+
+\usepackage{textcomp}
 
 \usepackage{hyperref}
 \usepackage{caption}
 \usepackage{graphicx}
 \usepackage{subfig}
 \usepackage{amsmath} % binom
+\usepackage{wrapfig}
+
+\usepackage{longtable}
 
 \DeclareMathOperator*{\argmax}{argmax} % thin space, limits underneath in displays
 \DeclareMathOperator*{\E}{\mathbb{E}}
@@ -41,8 +51,9 @@
         \fi
 }
 
-\title{Solving Sokoban}
+\title{Long-term and future-oriented planning with Sokoban}
 
+\newcommand*{\Appendixautorefname}{Appendix}
 
 \author{
   David S.~Hippocampus \\
@@ -52,11 +63,11 @@
   \texttt{hippo@cs.cranberry-lemon.edu} \\
   %% examples of more authors
    \And
- Elias D.~Striatum \\
-  Department of Electrical Engineering\\
-  Mount-Sheikh University\\
-  Santa Narimana, Levand \\
-  \texttt{stariate@ee.mount-sheikh.edu} \\
+  Jakob Weichselbaumer \\
+  Fakultät für Mathematik und Informatik \\
+  Universität Heidelberg \\
+  \texttt{weichselbaumer@stud.uni-heidelberg.de} \\
+  \texttt{https://github.com/ip193} \\
   %% \AND
   %% Coauthor \\
   %% Affiliation \\
@@ -77,21 +88,24 @@
 \begin{document}
 \maketitle
 
-\begin{abstract}
-\lipsum[1]
-\end{abstract}
+%\begin{abstract}
+%\lipsum[1]
+%\end{abstract}
 
 
 % keywords can be removed
-\keywords{First keyword \and Second keyword \and More}
+%\keywords{Sokoban \and DeepCubeA \and SSRL}
 
 
 \section{Introduction}
-\lipsum[2]
+Long-term and future-oriented planning is a challenging task due to the many possible decisions to be made. Often it is not clear which current decision is preferable at a later point in time. In addition, the number of possible decision combinations increases exponentially with each further decision. A game in which the long-term and future-oriented planning of importance is Sokoban.
+
+In our final project as part of the lecture "Advanced Machine Learning", we explore different approaches to solve Sokoban games. 
+
 
 \subsection{Sokoban}
-Sokoban is a puzzle/planning game, in which the player has to push boxes (in a warehouse) onto given (storage) locations. Any can be pushed onto any as there are no predefined target fields for the object to be moved . The boxes can only be pushed and not pulled by the player; it is not possible to move several at the same time. Some actions are not reversible, and mistakes can make the puzzle unsolvable, e.g., when a box is pushed into a corner.
-There restrictions force the player to plan several moves in advance. An example of a Sokoban game can be seen in~\autoref{fig:sokoban}.
+Sokoban is a puzzle/planning game, in which the player has to push boxes onto given locations. Each box can be moved to any destination, there are no predefined target fields on which a particular box should be moved. The boxes can only be pushed and not pulled by the player; it is not possible to move several boxes at the same time. Some actions are not reversible, and mistakes can make the puzzle unsolvable, e.g., when a box is pushed into a corner.
+These restrictions force the player to plan several moves in advance. An example of a Sokoban game can be seen in~\autoref{fig:sokoban}.
 
 \begin{figure}[ht]
     \centering
@@ -104,15 +118,22 @@ There restrictions force the player to plan several moves in advance. An example
 
 Sokoban puzzles are hard to solve as they have sparse rewards, big search graphs with cycles and have been shown to be PSPACE-complete \cite{culberson_sokoban_1997}. Due to these characteristics, random actions have a very low probability of success. This makes solving Sokoban puzzles a interesting area of research.
 
-Since random game states may not be solvable (e.g. a box is stuck in a corner), game states are created by starting from the solved state and making random reverse moves (pulling boxes). For the implementation of the algorithms \cite{SchraderSokoban2018} is used as a baseline.
+Since random game states may not be solvable (e.g. a box is stuck in a corner), game states are created by starting from the solved state and making random reverse moves (pulling boxes). For the implementation of the algorithms the Sokoban environment for OpenAI Gym \cite{SchraderSokoban2018} is used.
 
-The complexity of the game increases with the number of boxes (= $b$) and the number of spaces that the player can move (= $a$)according to~\autoref{eq:sokoban}. This means that a game with 3 boxes and 21 spaces the player can move to (e.g. in a game with the grid size of 7x7) has 23,940 possible states. But a game with about double the amount of spaces the player can move to (e.g. in a game with the grid size of 10x10) has 447,720 possible states which is more than 18 times more states.
+The complexity of the game increases with the number of boxes (= $b$) and the number of spaces that the player can move to (= $s$) according to~\autoref{eq:sokoban}. This means that a game with 3 boxes and 21 spaces the player can move to (e.g. in a game with the grid size of $7\times{7}$) has 23,940 possible states. But a game with about double the amount of spaces the player can move to (e.g. in a game with the grid size of $10\times{10}$) has 447,720 possible states which is more than 18 times more states. The amount possible game states increases even further when more boxes are added to the game, see \autoref{fig:sokoban_eq}. For example 2,500,000 possible game states are reached for a game with 4 boxes when there are only 38 spaces, for 3 boxes when there are 64 spaces and for 2 boxes there have to be 172 spaces the player can move to.
 
 \begin{equation} \label{eq:sokoban}
-a\binom{a-1}{b}
+s\binom{s-1}{b}
 \end{equation}
 
-In order to compare the different approaches a test dataset of 100 games for each room type has been created, see~\autoref{tab:generate_sokoban_room_types}.
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.5\textwidth]{images/introduction/sokoban/game_state_groth.pdf}
+    \caption{shows the growth of the possible game states according to $s\binom{s-1}{b}$, \autoref{eq:sokoban}}
+    \label{fig:sokoban_eq}
+\end{figure}
+
+In order to compare the different approaches a test dataset of 100 games for each room type has been created, see~\autoref{tab:generate_sokoban_room_types}. The generated games can be seen in \autoref{appendix:sokoban_games}.
 
 \begin{table}[ht]
  \caption{Test dataset for different room types.}
@@ -121,11 +142,11 @@ In order to compare the different approaches a test dataset of 100 games for eac
     \toprule
     Room type & grid size & \# boxes & comment\\
     \midrule
-    Sokoban-v0 & 10x10 & 3 & \\
-    Sokoban-v1 & 10x10 & 4 & as used in XX\\
-%    Sokoban-v2 & 10x10 & 5 & \\
     Sokoban-small-v0 & 7x7 & 2 & \\
     Sokoban-small-v1 & 7x7 & 3 & \\
+    Sokoban-v0 & 10x10 & 3 & \\
+    Sokoban-v1 & 10x10 & 4 & as used in \cite{agostinelli_solving_2019}\\
+%    Sokoban-v2 & 10x10 & 5 & \\
     Boxoban (medium) & 10x10 & 4 & published by \cite{boxobanlevels}\\
     Boxoban (hard) & 10x10 & 4 & published by \cite{boxobanlevels}\\
     \bottomrule
@@ -133,26 +154,31 @@ In order to compare the different approaches a test dataset of 100 games for eac
   \label{tab:generate_sokoban_room_types}
 \end{table}
 
+
 \section{Approaches}
-Three different approaches were tested to solve the game.
+Four different approaches were tested to solve the game.
 
 \subsection{Deep reinforcement learning and search}
-In \cite{agostinelli_solving_2019} the authors suggest to combine deep learning with path finding methods to solve a rubik’s cube and other puzzle games like lights out and Sokoban.
+In Solving the Rubik’s cube with deep reinforcement learning and search \cite{agostinelli_solving_2019} the authors suggest to combine deep learning with path finding methods to solve a Rubik’s cube and other puzzle games like Lights Out and Sokoban.
 
 The current game state is entered into a deep neural network, which outputs the cost (necessary steps) to reach the goal.
-After training this so-called cost-to-go function, it is used as a heuristic to solve the puzzles with a weighted A* search. This algorithm is named DeepCubeA by the authors.
+After training this so-called cost-to-go function, it is used as a heuristic to solve the puzzles with weighted A* search. This combination of the neural network and weighted A* search is named DeepCubeA by the authors.
 
 \subsubsection{data generation}
-The in \cite{agostinelli_solving_2019} used Sokoban environment uses a $10\times{10}$ grid containing three boxes that an agent has to push to three targets. The data given to the cost-to-go function is of size 400 and contains four binary vectors of size 100 each that represent the position of the agent, boxes, targets and walls.
+\label{sub:data_generation}
+The authors of \cite{agostinelli_solving_2019} used a Sokoban environment with a $10\times{10}$ grid containing three boxes. The data given to the cost-to-go function is of size 400 and contains four binary vectors of size 100 each that represent the position of the agent, boxes, targets and walls.
 
-Generating Sokoban environment of size $10\times{10}$ with three boxes is computational expensive, in the paper the authors used six GPUs used in parallel for data generation. In order to speed up the data generation a $7\times{7}$ grid with two boxes was chosen, this speeds up data generation by 100x (see~\autoref{tab:generate_sokoban_speed_compare}). The room type "adapted 'Sokoban-small-v0' with backtracking" only creates rooms that take a maximum of 10 steps to solve and also returns the steps in order to solve the game. This is needed to for the cost-to-go function. Data augmentation was used to generate eight times more data by mirroring images and rotating them 90 degrees. To further speedup data generation parts of the code have been implemented using Cython \cite{behnel2011cython}.
+Generating a Sokoban environment of size $10\times{10}$ with three boxes is computationally expensive; in the paper the authors used six GPUs in parallel for data generation. To speed up data generation, the given Sokoban implementation has been adapted by adding a constraint for the maximum number of steps to solve the game and return of steps to solve the game. To further speedup data generation, parts of the code have been implemented using Cython \cite{behnel2011cython}.
+
+To speed up learning, a smaller grid size of $7\times{7}$ with two boxes was chosen, this speeds up data generation by 100x (see~\autoref{tab:generate_sokoban_speed_compare}).
+The room type "adapted 'Sokoban-small-v0' with backtracking" uses the adapted implementation for data generation and only creates rooms that take a maximum of 10 steps to solve and also returns the steps in order to solve the game. This is needed in order to train the cost-to-go function. Data augmentation was used to generate eight times more data by mirroring images and rotating them 90 degrees. 
 
 \begin{table}[ht]
- \caption{Compare the time to generate 100 Sokoban games.}
+ \caption{Comparison of time taken to generate 100 Sokoban games.}
   \centering
   \begin{tabular}{lrr}
     \toprule
-    Room type & time to generate 100 rooms & speedup vs. 'Sokoban-v0' \\
+    Room type & time to generate 100 rooms & speed increase compared\\&&to 'Sokoban-v0'\\
     \midrule
     'Sokoban-v0' ($10\times{10}$ with three boxes)& 308 s  & - \\
     'Sokoban-small-v0' ($7\times{7}$ with two boxes)& 7 s & 44 \\
@@ -163,7 +189,7 @@ Generating Sokoban environment of size $10\times{10}$ with three boxes is comput
 \end{table}
 
 \subsubsection{cost-to-go function}
-Instead of using a lookup table that is unsuitable (as it is too large) for puzzles with large state spaces such as Sokoban, a deep neural network is trained to minimize the mean square error of the estimated cost-to-go value. The architecture for the deep neural network can be seen in~\autoref{tab:architecture_cost-to-go}, a residual block is shown in~\autoref{fig:residual_block}.
+Instead of using a lookup table that is unsuitable for puzzles with large state spaces such as Sokoban, a deep neural network is trained to minimize the mean square error of the estimated cost-to-go value. The architecture for the deep neural network can be seen in~\autoref{tab:architecture_cost-to-go}, the architecture of a residual block is shown in~\autoref{fig:residual_block}.
 
 \begin{minipage}{\textwidth}
 \vspace{0.2cm}
@@ -218,15 +244,17 @@ The network was trained with a batch size of 64 and the ADAM optimizer was used 
     \label{fig:sokoban_cost_loss}
 \end{figure}
 
-The model had to be altered as the batch normalization layers during evaluation caused for wrong predictions when the batch size was not 64. Figure\autoref{fig:sokoban_cost_loss_longTraining} shows the results after 24h training, a minimum loss of 0.2 was reached. When trying to evaluate a single state with this model the predictions where always way off. In Figure\autoref{fig:sokoban_cost_loss_batch1} the same model can be seen but with a test batch size of 1. Here the problem is clearly visible, the training loss drops while the test loss stays constant. The model was altered and all batch normalization layers where removed after 13 hours, 750 epochs with 100,000 states each, the minimum loss reached was 0.5 with a test batch size of 1, see Figure\autoref{fig:sokoban_cost_loss_no_batchnorm}. Compared to Figure\autoref{fig:sokoban_cost_loss_longTraining} the training without the batch normalization layers is much more unstable and the loss does not drop as low as before.
+The model had to be altered as the batch normalization layers during evaluation caused for wrong predictions when the batch size was not 64. Figure\autoref{fig:sokoban_cost_loss_longTraining} shows the results after 24h training, a minimum loss of 0.2 was reached. When trying to evaluate a single state with this model, the predictions were always very poor. In Figure\autoref{fig:sokoban_cost_loss_batch1} the same model can be seen but with a test batch size of 1. Here the problem is clearly visible, the training loss drops while the test loss stays constant. The model was altered and all batch normalization layers where removed. After 13 hours, 750 epochs with 100,000 states each, the minimum loss reached was 0.5 with a test batch size of 1, see Figure\autoref{fig:sokoban_cost_loss_no_batchnorm}. Compared to Figure\autoref{fig:sokoban_cost_loss_longTraining} the training without the batch normalization layers is much more unstable and the loss does not drop as low as before.
 
+% TODO maximum of 10 steps
 
 \begin{figure}[ht]
     \centering
     \subfloat[Prediction error on a $7\times{7}$ grid with two boxes. For 4 steps and fewer to solution the error is nearly 0 with a standard deviation of 1.\label{fig:sokoban_error_7_2}]{{\includegraphics[width=0.45\textwidth]{images/approaches/deep_reinforcement_learning_and_search/7x7_10_2_61128_error_bar.pdf} }}
     \quad
     \subfloat[Prediction error on a $7\times{7}$ grid with three boxes. The model is the same as for Figure\autoref{fig:sokoban_error_7_2}, trained on a $7\times{7}$ grid with only two boxes.\label{fig:sokoban_error_7_3}]{{\includegraphics[width=0.45\textwidth]{images/approaches/deep_reinforcement_learning_and_search/7x7_10_3_66312_error_bar.pdf} }}
-    \caption{Prediction error compared against steps (=distance) to solution}
+    \caption{Prediction error (absolute error of the heuristic) of $7\times{7}$ grid compared against steps (=distance) to solution}
+    \label{fig:sokoban_error_7}
 \end{figure}
 
 
@@ -234,21 +262,129 @@ The model from Figure\autoref{fig:sokoban_cost_loss_no_batchnorm} was trained on
 
 
 
+Another model was trained on a $10\times{10}$ grid with two boxes, the architecture is the same as described in \autoref{tab:architecture_cost-to-go}, except that the first layer has an input of 400 (=10*10*4). One two boxes where chosen as the amount of possible states is much lower compared to a $10\times{10}$ grid with the boxes, see XXX. The model was trained with newly generated data with a maximum step distance of 15 after every epoch. After 75 hours of training, 1700 epochs with 100,000 states each, a minimum loss of 5.28 with a test batch size of 1 was reached, see \autoref{fig:sokoban_10_cost_loss}. Compared to Figure\autoref{fig:sokoban_cost_loss_no_batchnorm} the loss is much more stable but does not drop as low. The training was stopped after 75 hours as there was not much improvement in the loss.
 
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.45\textwidth]{images/approaches/deep_reinforcement_learning_and_search/DAVI_steps_15_10x10-longTraining-no-batchnorm.pdf}
+    \caption{loss of the "$10\times{10}$ grid with two boxes" model with a batch size of 1}
+    \label{fig:sokoban_10_cost_loss}
+\end{figure}
 
+When comparing the prediction error of the model trained on a $10\times{10}$ grid (\autoref{fig:sokoban_error_10}) with the model trained on a $7\times{7}$ grid (\autoref{fig:sokoban_error_7}) the higher loss of the former model is apparent. The prediction error is much higher for model trained on the $10\times{10}$ grid.
 
-% TODO check error for each distance (7x7 and 10x10)
+\begin{figure}[ht]
+    \centering
+    \subfloat[Prediction error on a $10\times{10}$ grid with two boxes. For 7 steps and fewer to solution the average predicated value is lower than the actual value with a standard deviation of about 2.5. For 8 steps or more to the solution the predicated distance is higher with a standard deviation of about 5.\label{fig:sokoban_error_10_2}]{{\includegraphics[width=0.31\textwidth]{images/approaches/deep_reinforcement_learning_and_search/10x10_15_2_50464_error_bar.pdf} }}
+    \quad
+    \subfloat[Prediction error on a $10\times{10}$ grid with three boxes. The model is the same as for Figure\autoref{fig:sokoban_error_10_2}, trained on a $10\times{10}$ grid with only two boxes. The diagram looks similar to the one in Figure\autoref{fig:sokoban_error_10_2} shifted to the left. \label{fig:sokoban_error_10_3}]{{\includegraphics[width=0.31\textwidth]{images/approaches/deep_reinforcement_learning_and_search/10x10_15_3_53120_error_bar.pdf} }}
+    \quad
+    \subfloat[Prediction error on a $10\times{10}$ grid with four boxes. The prediction error is similar to the prediction error as in Figure\autoref{fig:sokoban_error_10_3} but with a much higher error rate. \label{fig:sokoban_error_10_4}]{{\includegraphics[width=0.31\textwidth]{images/approaches/deep_reinforcement_learning_and_search/10x10_15_4_54376_error_bar.pdf} }}
+    \caption{Prediction error (absolute error of the heuristic) of $10\times{10}$ grid compared against steps (=distance) to solution}
+    \label{fig:sokoban_error_10}
+\end{figure}
 
 
 
 \subsubsection{A* search}
+\label{section:a_search}
 Once a cost-to-go function has been learned, it can be used as a heuristic to search for a path between the start state and the destination state.
 
 In standard A* search the cost of a node $x$ is determined by the function $f(x)=g(x)+h(x)$ where $g(x)$ describes the previous costs from the start node to $x$ and $h(x)$ is the estimated cost (by the cost-to-go function (= heuristic)) from $x$ to the target node.
 
-The A* search keeps an "open" set from which it opens the node with the lowest cost/$f(x)$ value and expands the node.  The algorithm starts with only the start node in the "open" set. Once a node has been expanded, that node is moved to the "closed" set, and any subnodes/children that are not already in the "closed" set are added to the open set. Once the target node is removed from the "open" set, the algorithm terminates.
+The A* search keeps an "open" set from which it opens the node with the lowest cost (= $f(x)$ value) and expands the node.  The algorithm starts with only the start node in the "open" set. Once a node has been expanded, that node is moved to the "closed" set, and any subnodes/children that are not already in the "closed" set or whose $g(x)$ is smaller than the $g(x)$ of the equivalent node in the "closed" set are added to the "open" set. Once the target node is removed from the "open" set, the algorithm terminates. The complete algorithm is shown in \autoref{alg:a_star}.
 
-The authors suggest in the paper to use weighted A* search since it trades potentially longer solutions for potentially less memory usage. This is achieved by weighting the previous costs from the start node to $x$ with a factor between zero and one, the so called path-cost coefficient $\lambda$. The function for weighted A* search is $f(x)=\lambda g(x)+h(x)$ with $\lambda\in[0,1]$. The use of the weighted A* search was not necessary in our implementation, since even very long searches did not use more than 3 GB of memory.
+\begin{algorithm}[ht]
+\SetKwInOut{Input}{Input}
+\SetKwInOut{Output}{Output}
+
+\underline{function a\_star} ($start\_position$, $weight=1$)\;
+
+\Input{Start position of the game and a weight for weighted A* search}
+\Output{List of moves to solve the game or $False$ if no solution is found}
+\vspace*{0.5em}
+$closeSet\gets$ empty set
+
+$openHeap\gets$ empty heap
+
+$cameFromMap\gets$ empty map
+
+$gScoreMap\gets\{start\_position: 0\}$
+
+$fScoreMap\gets\{start\_position: heuristic(start\_position)\}$
+
+$actionsMap\gets$ empty map
+
+$openHeap$.push($start\_position$, $fScoreMap[start\_position]$)
+\vspace*{0.5em}
+
+\While {$openHeap$ is not empty}{
+$current$ = $openHeap$.pop() // node with lowest $f(x)$ value
+
+\ForEach {$action \in [up, right, down, left]$}{
+$gScoreTentative \gets gScoreMap[current] + 1$
+
+$neighbor\gets current$ 
+
+$neighbor$.step($action$)
+
+\vspace*{0.3em}
+\If{$neighbor \in closeSet$ and $gScoreTentative >= gScoreMap[neighbor]$}{
+%\Continue
+\textbf{continue}
+}
+
+\vspace*{0.3em}
+\If{$neighbor \not\in openHeap$}{
+$cameFromMap[neighbor] = current$
+
+$gScoreMap[neighbor] = gScoreTentative$
+
+$fScoreMap[neighbor] = gScoreTentative * weight + heuristic(neighbor)$
+
+$actionsMap[neighbor] = action$
+
+$openHeap$.push($neighbor$, $fScoreMap[neighbor]$)
+
+}
+
+
+\vspace*{0.3em}
+\If{reached solution}{
+$steps\gets$ empty list
+
+\While {$neighbor \in cameFromMap$}{
+$steps$.append($actions$[$neighbor$])
+
+$neighbor\gets$ $cameFromMap$[$neighbor$]
+}
+\Return reversed($steps$)
+}
+
+
+}
+}
+
+\Return $False$
+\caption{The algorithm for weighted A* search. A weight of 1 equals regular A* search.}
+\label{alg:a_star}
+\end{algorithm}
+
+
+One condition of A* search is that the heuristic is admissible \cite[p.~94]{russell_artificial_2010}, which means it should never overestimates the cost to reach the goal. Overestimation causes the A* search to explore nodes that may have a poorer $f(x)$ value. This condition is not met as the trained cost-to-go function often overestimates the distance to the solution, see error bars in \autoref{fig:sokoban_error_7} and \autoref{fig:sokoban_error_10}. This results in an not optimal search.\newline
+The second condition is a consistent heuristic \cite[p.~95]{russell_artificial_2010}, where the estimated cost of reaching the goal from the current state is not greater than the step cost of reaching a neighboring state plus the estimated cost of reaching the goal from that neighbor, is also not met, see error bars in \autoref{fig:sokoban_error_7} and \autoref{fig:sokoban_error_10}.
+Because of the non consistent heuristic it is not guaranteed that another algorithm expands fewer nodes than A* search. \cite[p.~98]{russell_artificial_2010}
+
+
+The complexity of the A* search depends on the heuristics. In the worst case, the number of expanded nodes of a typical node is exponential to length of the shortest path $O((b^\epsilon)^d)$ (for constant step costs), where $b^\epsilon$ is the average number of successors per state and $d$ is the solution depth (= length of the solution). The average number of successors per state ($b^\epsilon$) can be calculated by \autoref{eq:average_successors} where $N$ is the total number of explored nodes. A optimal heuristic would have a value of $b^\epsilon=1$. \cite[p.~100-101]{russell_artificial_2010}
+
+\begin{equation} \label{eq:average_successors}
+N + 1 = 1 + b^\epsilon + (b^\epsilon)^2 + \dotsi + (b^\epsilon)^d = \sum_{n=0}^{d} (b^\epsilon)^n
+\end{equation}
+
+
+
+The authors suggest in the paper to use weighted A* search since it trades potentially longer solutions for potentially less memory usage. This is achieved by weighting the previous costs from the start node to $x$ with a factor between zero and one, the so called path-cost coefficient $\lambda$. The function for weighted A* search is $f(x)=\lambda g(x)+h(x)$ with $\lambda\in[0,1]$. The use of the weighted A* search was not necessary as with a efficient implementation, even very long searches, more than 3 GB of memory is never used.
 
 % TODO: It’s also very important that the heuristic is always an underestimation of the total path, as an overestimation will lead to A* searching for through nodes that may not be the ‘best’ in terms of f value. (maybe -0.5?, so -MSE?)
 
@@ -257,31 +393,219 @@ The authors suggest in the paper to use weighted A* search since it trades poten
 
 \subsubsection{Results}
 
+For each generated game DeepCubeA was able to find a solution, the solution paths can be found in \autoref{appendix:sokoban_games}. This is due to the A* search, which is always able to find a way between two points after exploring all possible states if one exists (= A* search is both complete and optimal) \cite[p.~93]{russell_artificial_2010}. For this reason, in addition to the number of steps required to solve the game, it is also interesting how many states the algorithm had to explore before finding a solution, see \autoref{tab:deepcubea_results} and compare the effective branching factors, see \autoref{tab:effective_branching_factor}. The implementation was able to check 100 states per second using a single core on a \texttt{Intel(R) Xeon(R) CPU E3-1231 v3 @ 3.40GHz}, the slowest part was the sokoban gym \cite{SchraderSokoban2018}.
+
+
+
 \begin{table}[ht]
- \caption{Test dataset for different room types.}
+ \caption{avg. steps to solution and percentage of explored states needed to solve the test dataset for different room types.}
   \centering
-  \begin{tabular}{lrrl}
+  \begin{tabular}{lrrr}
     \toprule
-    Room type & avg. steps to solution & \% of explored states\\
+    Room type & avg. steps to solution & avg. \% of explored states & avg. of possible states\\
     \midrule
-    Sokoban-v0 & 25.53 & 18.65 \\
-    Sokoban-v1 & - & - \\
-    Sokoban-v2 & - & - \\
-    Sokoban-small-v0 & 11.44 & 31.60 \\
-    Sokoban-small-v1 & 16.73 & 5.41 \\
-    Boxoban (medium) & - & - \\
-    Boxoban (hard) & - & -\\
+    Sokoban-small-v0 & 11.38 & 17.34 & 1,674\\
+    Sokoban-small-v1 & 16.62 & 22.85 & 10,323\\
+    Sokoban-v0 & 24.97 & 24.36 & 102,924\\
+    Sokoban-v1 & 29.10 & 38.26 & 865,870\\
+%    Sokoban-v2 & - & - \\
+    Boxoban (medium) & 46.42 & 29.22 & 1,119,188\\
+    Boxoban (hard) & 55.55 & 36.76 & 1,110,871\\
     \bottomrule
   \end{tabular}
   \label{tab:deepcubea_results}
 \end{table}
 
-\subsection{Imagination-Augmented Agents / DeepCubeA with Imagination}
+The effective branching factor can be calculated, as described in \autoref{section:a_search}, once a solution has been found. This is one way to describe the quality of a heuristic. A lower effective branching factor does not guarantee that the heuristic finds a shorter solution, but it guarantees that it will not expand more nodes than a heuristic with a higher effective branching factor (= better efficiency). As shown in \autoref{tab:effective_branching_factor} the effective branching factor of the trained models is between 1.22 and 1.52 which is about half of the maximal branching factor which averages about 2.7. The branching factor does not become worse with the increase of boxes, although it was only trained on 2 boxes, see column "$7\times{7}$, 2 boxes" and "$10\times{10}$, 2 boxes" in XXX. This shows that the cost-to-go function is able to generalize. However, "$7\times{7}$, 3 boxes" provides a better branching factor than "$7\times{7}$, 2 boxes" on a $7\times{7}$ grid with 3 boxes, as is expected.
 
-Instead of a real env DeepCubeA should "imagine" the steps.
 
-\subsection{Approache 3}
+\begin{table}[ht]
+ \caption{comparison of the effective branching factor calculated according to \autoref{eq:average_successors}, max. branching factor is the average amount of possible actions per state.}
+  \centering
+  \begin{tabular}{lrrrr}
+    \toprule
+    Room type & max. branching factor & $7\times{7}$, 2 boxes & $7\times{7}$, 3 boxes & $10\times{10}$, 2 boxes\\
+    \midrule
+    Sokoban-small-v0 & 2.69987 & 1.52050 & ??? & - \\
+    Sokoban-small-v1 & 2.77278 & 1.51945 & ??? & - \\
+    Sokoban-v0 & 2.83565 & - & - & 1.45281 \\
+    Sokoban-v1 & 2.87597 & - & - & 1.49189 \\
+%    Sokoban-v2 & - & - \\
+    Boxoban (medium) & 2.71001 & - & - & 1.27109 \\
+    Boxoban (hard) & 2.71607 & - & - & 1.22412 \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:effective_branching_factor}
+\end{table}
 
+
+\autoref{fig:sokoban_states_vs_steps} shows the average available and explored states for each room type.  It can be clearly seen that with Sokoban-v1 the number of available states increases rapidly. This implies that the search time also increases. When comparing Sokoban-v0 with Sokoban-v1, the average percentage of explored states only increases from 24.36 to 38.26 by 57\%, but when looking at the numbers of explored states, they increase from 25,077 to 331,305 by 1,221\%.
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.5\textwidth]{images/approaches/deep_reinforcement_learning_and_search/sokoban_states_vs_steps.pdf}
+    \caption{comparison of average available and explored states for each room type}
+    \label{fig:sokoban_states_vs_steps}
+\end{figure}
+
+
+\clearpage
+\newpage
+\subsection{DeepCubeA with Imagination}
+
+DeepCubeA with Imagination uses the A* search and the cost-to-go function of DeepCubeA and combines it with an environment model. This results in a model-based approach. In DeepCubeA, a model-free approach, observations are made from the environment directly. In a model-based approach, a model of the environment is learned to minimize the dependency on the real world (= the sokoban environment). With an accurate environment model, the agent can generate all the necessary states by only using the environment model instead of performing the actions in the real world. Since dependence on the real world is minimal, sample efficiency (= speed) is improved, with a perfect model there is no dependence on the real world. In real applications, however, it is not always possible to have an accurate model of the real world. However, even an imperfect model can considerably reduce the number of samples needed from the real world.
+
+\subsubsection{Environment Model}
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=0.7\textwidth]{images/approaches/DeepCubeA_imagine/EnvModel.pdf}
+    \caption{Comparison of processes of the sokoban environment and the environment model. The result is the same.}
+    \label{fig:env_model}
+\end{figure}
+
+
+The environment model creates the next observation from the current observation and the given action. The initial input observation is created by retrieving the room\_state from the environment which is provided by the Sokoban environment for OpenAI Gym \cite{SchraderSokoban2018}. This has the advantage that no convolution layers are needed to extract features from pixels. Another modification for the model to learn faster is to remove the outer row of walls (zeros in room\_state), as these are constant in every Sokoban game, see \autoref{fig:env_model} for a visual representation of the algorithm.
+
+
+\begin{minipage}{\textwidth}
+\vspace{0.2cm}
+\begin{minipage}[b]{0.42\textwidth}
+  \centering
+
+  \begin{tabular}{lrr}
+    \toprule
+    Layer (type) & Input Shape & Output Shape \\
+    \midrule
+    FC + PReLU & 26  & 512 \\
+    FC + PReLU & 512  & 1,024 \\
+    FC + PReLU & 1,024  & 2,048 \\
+    FC + PReLU& 2,048  & 5,012 \\
+    FC + PReLU& 5,012  & 2,048 \\
+    FC + PReLU& 2,048  & 1,024 \\
+    FC + PReLU& 1,024  & 512 \\
+    FC + PReLU& 512  & 25 \\
+    \bottomrule
+  \end{tabular}
+
+  \captionof{table}{Architecture of environment model, FC stands for Fully Connected.}
+  \label{tab:architecture_environment_model_1}
+\end{minipage}
+\hfill
+\begin{minipage}[b]{0.55\textwidth}
+  \centering
+
+  \begin{tabular}{lrr}
+    \toprule
+    Layer (type) & Input Shape & Output Shape \\
+    \midrule
+    Fully Connected & 26  & 5,000 \\
+    Parametric ReLU (PReLU) & 5,000 & 5,000\vspace{1mm}\\
+    
+    Fully Connected & 5,000  & 1,000 \\
+    Parametric ReLU (PReLU) & 1,000 & 1,000\vspace{1mm}\\
+    
+    Residual Block with PReLU& 1,000 & 1,000 \\
+    Residual Block with PReLU& 1,000 & 1,000\vspace{1mm}\\
+    
+    Fully Connected & 1,000  & 25 \\
+    \bottomrule
+  \end{tabular}
+
+  \captionof{table}{Architecture of environment model, with Residual Blocks.}
+  \label{tab:architecture_environment_model}
+\end{minipage}
+\vspace{0.5cm}
+\end{minipage}
+
+
+Three different model where trained. The first model uses the architecture seen in \autoref{tab:architecture_environment_model_1} and was trained to minimize the mean square error with the ADAM optimizer. After 2,500 epochs, 12 hours, of training the loss did not converge, see Figure\autoref{fig:sokoban_env_loss_1}.\newline
+The second model uses the architecture seen in \autoref{tab:architecture_environment_model}. Mean square error as the loss function and the ADAM optimizer were used to train the model. A minimal loss of 0.057, was reached after 1,350 epochs, 12 hours, of training, see Figure\autoref{fig:sokoban_env_loss_2}.\newline
+The third model uses the same architecture and optimizer as the previous model but uses the L1 norm for the loss function instead. After 820 epochs, 9 hours, of training a minimal of 0.07 was reached, see Figure\autoref{fig:sokoban_env_loss_3}.
+
+
+
+The data generation is the same as descibed in \autoref{sub:data_generation}.
+
+
+\begin{figure}[ht]
+    \centering
+    \subfloat[The loss did not converge even after a long time of training. The loss was clipped to a max of 10 in the diagram. \label{fig:sokoban_env_loss_1}]{{\includegraphics[width=0.31\textwidth]{images/approaches/DeepCubeA_imagine/own_model_loss.pdf} }}
+    \quad
+    \subfloat[Constantly falling loss, much better results compared to Figure\autoref{fig:sokoban_env_loss_1}. Training was stopped after 12 hours. \label{fig:sokoban_env_loss_2}]{{\includegraphics[width=0.31\textwidth]{images/approaches/DeepCubeA_imagine/loss.pdf} }}
+    \quad
+    \subfloat[Same architecture as Figure\autoref{fig:sokoban_env_loss_2}, the loss did also drop but stayed constant after 400 epochs. \label{fig:sokoban_env_loss_3}]{{\includegraphics[width=0.31\textwidth]{images/approaches/DeepCubeA_imagine/loss_L1.pdf} }}
+    \caption{Training loss of three different environment models.}
+    \label{fig:sokoban_env_loss}
+\end{figure}
+
+The absolute error of each field type (0=Wall, 1=Free Space, 2=Destination, 3=Box on Destination, 4=Box not on Destination, 5=Player) of the predicted observation can be seen in XXX. It is visible that the mean error of each field type is about 0 with a standard deviation of less than 1. With such a low error rate, the values can be rounded to integers between 0-5 and a border of walls (=0) is added around the output to produce a valid observation.
+
+\begin{figure}[ht]
+    \centering
+    \subfloat[The loss did not converge even after a long time of training. The loss was clipped to a max of 10 in the diagram. \label{fig:sokoban_env_error_1}]{{\includegraphics[width=0.31\textwidth]{images/approaches/DeepCubeA_imagine/env_model_1_MSE-error.pdf} }}
+    \quad
+    \subfloat[Constantly falling loss, much better results compared to Figure\autoref{fig:sokoban_env_loss_1}. Training was stopped after 12 hours. \label{fig:sokoban_env_error_2}]{{\includegraphics[width=0.31\textwidth]{images/approaches/DeepCubeA_imagine/env_model_2_MSE-error.pdf} }}
+    \quad
+    \subfloat[Same architecture as Figure\autoref{fig:sokoban_env_loss_2}, the loss did also drop but stayed constant after 400 epochs. \label{fig:sokoban_env_error_3}]{{\includegraphics[width=0.31\textwidth]{images/approaches/DeepCubeA_imagine/env_model_2_L1-error.pdf} }}
+    \caption{Training loss of three different environment models.}
+    \label{fig:sokoban_env_error}
+\end{figure}
+
+
+TODO add absolute error plot
+
+
+\subsubsection{Results}
+
+TODO show high error rate
+
+TODO able to solve any?
+
+
+
+
+\clearpage
+\newpage
+\subsection{Imagination augmented agents}
+
+In imagination augmented agents the action performed by the agent is the result of the model-based, where future trajectories are imagined, as well as the model-free path. 
+
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{images/approaches/Imagination/i2a.pdf}
+    \caption{The architecture of imagination augmented agents.}
+    \label{fig:i2a}
+\end{figure}
+
+\subsubsection{Rollout Encoders}
+The model-based path consists of so-called rollout encoders; these rollout encoders contain the imaginative power of the agent.
+Rollout encoders consist of two parts,the "Imagine Future" and the "Encoder" part.
+The "Imagine Future" part consists of the "Imagination Core"; this "Imagination Core" provides the next state as well as a reward.
+The "Imagination Core" consists of a "Policy Network" and an "Environment Model".  The "Environment Model" learns from all actions the agent has performed so far. It takes the information about the condition and the chosen action and imagines the future scenario as well as the reward under consideration of the past experiences.
+The imagined state of the first "Imagine Future" is used as input for the next "Imagine Future". This is repeated a fixed number times, the authors suggest 5, in order to obtain a rollout consisting of a pair of states and rewards.
+An encoder (e.g. an LSTM) is used to encode this rollout into a fixed-size vector.
+These rollout encodings are in fact embeddings that describe the imagined path.
+A encoded rollout is created for each imagined path, this means for every possible
+action in the environment.
+Aggregators are used to aggregate these encoded rollout.
+
+
+The model-free agent is a standard advantage actor-critic (A2C).
+
+
+
+\subsubsection{Results}
+
+The implementation is based on the code by https://github.com/higgsfield/Imagination-Augmented-Agents and was adjusted to work with the Sokoban environment for OpenAI Gym \cite{SchraderSokoban2018}.
+
+
+
+
+
+\newpage
+
+\iffalse
 \section{Headings: first level}
 \label{sec:headings}
 
@@ -362,42 +686,47 @@ See awesome Table~\ref{tab:table}.
 \item Aliquam dignissim blandit est, in dictum tortor gravida eget. In ac rutrum magna.
 \end{itemize}
 
-\begin{document}
+\fi
+%% \begin{document}
 
 
-\pagebreak
+%\pagebreak
 \section{Stochastic Synapse Reinforcement Learning}
 
-Stochastic Synapse Reinforcement Learning (SSRL) is a reinforcement learning algorithm "for artificial neural networks (ANNs) to learn an episodic task in which there is discrete input with perceptual aliasing, continuous output, delayed reward, an unknown reward structure, and environmental change". [citation]
+\begin{displayquote}Stochastic Synapse Reinforcement Learning (SSRL) is a reinforcement learning algorithm "for artificial neural networks (ANNs) to learn an episodic task in which there is discrete input with perceptual aliasing, continuous output, delayed reward, an unknown reward structure, and environmental change". \cite{8285425}\end{displayquote} 
 
-This section will discuss the design of the algorithm, the training procedure used to adapt it to Sokoban, the experimental results observed, and further explorations that were made in light of those results . 
+The algorithm was selected for its problem-agnostic design, its relative ease of implementation, and because its design specification (delayed reward, environmental change) appeared suitable for the Sokoban task. 
 
-The algorithm was selected for its problem-agnostic design, relative ease of implementation, and because its design specification (delayed reward, environmental change) appeared suitable for the Sokoban task. Finally, section \ref{sec:all_problems_ssrl} will discuss shortcomings of the algorithm and the author's implementation of its training and give a resumptive overview of the approach used.
+This section will discuss the design of the algorithm, the training procedure used to adapt it to Sokoban, the experimental results of training, and further explorations that were made in light of those results.  
+
+Section \ref{sec:all_problems_ssrl} will discuss shortcomings of the algorithm and my implementation of its training and give suggestions for improvement and further research. 
+
+Finally, my correspondence with Prof. Hougen, a coauthor of the SSRL paper \cite{8285425}, is included with permission in section \ref{sec:emails_ssrl}.
 
 \subsection{Algorithm design}
 \subsubsection{Overview}
 
 \begin{equation} \label{eq:weight_sample}
-    \caption{Weights are sampled from a unique normal distribution at every timestep k. }
-    w_{ij} \sim \Psi(\mu_{ij}(k), \sigma_{ij}(k))
+%    \caption{Weights are sampled from a unique normal distribution at every time step k. }
+    w_{ij}(k) \sim \Psi(\mu_{ij}(k), \sigma_{ij}(k))
 \end{equation}
 
-In brief, the algorithm works by sampling neural network weights from a learned normal distribution (see \ref{eq:weight_sample}) at each time step in an episode and updating those distribution parameters (mean and standard deviation) at the end of the episode depending on 
+In brief, the algorithm works by sampling neural network weights from a learned normal distribution (see \ref{eq:weight_sample}) at each time step $k$ in an episode and updating those distribution parameters (mean and standard deviation) at the end of the episode $\tau$ depending on 
 
 1) whether the performance in the episode using those sampled weights positively or negatively exceeded a past average reward
 
 and
 
-2) how much the sampled weights differed from the average values suggested by that weight's normal distribution at any given time step.  
+2) how much the sampled weights differed from the average values suggested by that weight's normal distribution at any given time step $k$.  
 
-Because the algorithm associates each weight in the network with its own normal distribution and updates its parameters independently for their contribution to the network's output at every time step, it can address the problem of credit assignment on a per-node, per-timestep level.  
+Because the algorithm associates each weight in the network with its own normal distribution and updates its parameters independently for their contribution to the network's output at every time step, it can address the problem of credit assignment on a per-node, per-time-step level.  
 
 \subsubsection{Detail}
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=.8\textwidth,left]{images/One-Layer-NNET.PNG}
-    \caption{The single-layer architecture proposed in the paper.}
+    \caption{The single-layer architecture proposed in the paper. \cite{8285425}}
     \label{fig:one_layer_ANN}
 \end{figure}
 
@@ -411,7 +740,7 @@ The architecture proposed by Shah and Hougen uses a neural network with only an 
     e_{\mu, ij}(k) = x_i(k)\cdot(|w_{ij}(k) - \mu_{ij}(k)| - \sigma_{ij}(k))
 \end{equation}
 
-The update formula for $\mu_{ij}$ applied at the end of an episode $\tau$ is shown in equation \ref{eq:weightupdate_mu} with parameters \textbf{learning rate} ($\eta_\mu, \eta_\sigma$) and \textbf{decay} ($d_\mu, d_\sigma$). Here, $t$ is the final episode length, $r(\tau)$ is the sum reward collected in this episode, and $\overline{r}(\tau)$ is an "average reward" computed over a sliding window of rewards earned in past episodes. The update formula for $\sigma_{ij}$ (equation \ref{eq:weightupdate_sigma}) has an additional clamping step (\ref{eq:weightupdate_sigma_clamp}) to control the maximum level of exploration, to prevent excessive divergence of the algorithm's weights. 
+The update formula for $\mu_{ij}$ applied at the end of an episode $\tau$ is shown in equation \ref{eq:weightupdate_mu} with parameters \textbf{learning rate} ($\eta_\mu, \eta_\sigma$) and \textbf{decay} ($d_\mu, d_\sigma$). Here, $t$ is the final episode length, $r(\tau)$ is the sum reward collected in this episode, and $\overline{r}(\tau)$ is an "average reward" computed over a sliding window of rewards earned in past episodes. The update formula for $\sigma_{ij}$ (equation \ref{eq:weightupdate_sigma}) has an additional clamping step (\ref{eq:weightupdate_sigma_clamp}) to control the maximum level of exploration, to prevent excessive divergence of the algorithm's sampled weights. 
 
 \begin{equation} \label{eq:weightupdate_mu}
     \mu_{ij}(\tau + 1) = \mu_{ij}(\tau) + \eta_\mu\cdot(r(\tau) - \overline{r}(\tau))\sum_{k=1}^{k=t}e_{\mu, ij}(k)d_\mu^{(t - k)}
@@ -432,11 +761,9 @@ By updating both $\mu_{ij}$ and $\sigma_{ij}$ separately, the algorithm can cont
 
 \subsubsection{Training}
 
-To train the algorithm, the Sokoban environment was initialized to a board state from which a solution state could be reached in $step\_distance$ steps. The beginning training case is $step\_distance=1$. As soon as the algorithm is able to solve it consistently or a maximum number of training episodes have been reached, $step\_distance \leftarrow step\_distance+1$ and the process repeats with the new $step\_distance$. Games are truncated after reaching $step\_distance\cdot5$ steps to end obviously failed games at an appropriate time. 
+To train the algorithm, the Sokoban environment was initialized to a board state from which a solution state could be reached in $step\_distance$ steps. The beginning training case is $step\_distance=1$. As soon as the algorithm is able to solve it consistently or a maximum number of training episodes have been reached, $step\_distance \leftarrow step\_distance+1$ and the process repeats with the new $step\_distance$. Games are truncated after reaching $step\_distance\cdot5$ steps to end obviously failed games at an appropriate time. Generating these states was not straightforward and proved to be a bottleneck in the implementation and success of this algorithm, as is described in section \ref{sec:game_troubles_sokoban}. 
 
-Generating these states was not straightforward and proved to be a major bottleneck in the implementation and success of this algorithm, as is described in section \ref{sec:game_troubles_sokoban}. 
-
-For simplicity, the game was played with a $7 \times 7$ board state and $2$ boxes. 
+For simplicity, the game was played with a $7 \times 7$ board state and $2$ boxes. The agent's neural network received the flattened board state as input. 
 
 Rewards were tallied at every step and delivered as a sum at the end of the episode according to the default settings of the Sokoban environment: 
 
@@ -456,15 +783,22 @@ Move box off of goal & -1 \\
 
 Input to the game was defined as \[\argmax_{out \in \{0, ..., O-1\}} x_{1, out}\] with $O = 4 = \#\{up, down, left, right\}$ and $x_1$ denoting the feed-forward output vector of the network. 
 
-Because the paper makes no mention of what the average reward should be for an empty list of past rewards (when accessing the past reward for the first time), the author chose to use the first reward, i.e. the current reward, as the "average past reward", which has less bias than using a default value like 0. This means that the update at the end of the first episode does not change the weight parameters. The average past reward $\overline{r}(\tau)$ was otherwise computed as the mean of the past $min(len(past\_rewards\_earned), max(200, int(0.2 \cdot len(past\_rewards\_earned))))$ games. 
+Because the paper makes no mention of what the average reward should be for an empty list of past rewards (when accessing the past reward for the first time), I chose to use the first reward, i.e. the current reward, as the "average past reward", which has less bias than using a default value like 0. This means that the update at the end of the first episode does not change the weight parameters. The average past reward $\overline{r}(\tau)$ was otherwise computed as the mean of the past $min(len(past\_rewards\_earned), max(200, int(0.2 \cdot len(past\_rewards\_earned))))$ games. $200$ was chosen as a sensible minimum window by me. 
 
-\textbf{Learning rate} and \textbf{decay} were set to $0.5$ and $1.$ (no decay), respectively. The former choice was used by the paper's authors in their experiment, and the latter was used because Sokoban episodes are very short and decay seemed unnecessary. 
+\textbf{Learning rates} and \textbf{decay} were set to $0.5$ and $1.$ (no decay), respectively. The former choice was used by the paper's authors in their experiment, and the latter was used because Sokoban episodes are very short and decay seemed unnecessary. 
 
 \subsection{Performance of the single-layer architecture} \label{sec:performance_shallow}
 
-When applying the algorithm to Sokoban, weight parameters were initialized with $\mu_{ij}$ uniformly randomly distributed in $[-1, 1]$ and $\sigma_{ij}$ uniformly distributed in $[0.05, 1]$. Note that the paper did not suggest any intialization principles for general use. The paper presented a simple robotic experiment in which the robot was expected to move forwards, so parameters were initialized with certain positive values because the researchers knew these were better suited to the task. Because the no beneficial initializations were known for Sokoban, a conservative zero-centered intialization was chosen. 
+When applying the algorithm to Sokoban, weight parameters were initialized with $\mu_{ij}$ uniformly randomly distributed in $[-1, 1]$ and $\sigma_{ij}$ uniformly distributed in $[0.05, 1]$. Note that the paper did not suggest any initialization principles for general use. The paper presented a simple robotic experiment in which the robot was expected to move forwards, so parameters were initialized with certain positive values because the researchers knew these were better suited to the task. Because the no beneficial initializations were known for Sokoban, a conservative zero-centered initialization was chosen. 
 
-The algorithm as presented in the paper using the intialization above failed to adequately solve the Sokoban task even for the simplest case $step\_distance=1$. Figure \ref{fig:shallow_performance_graph} shows stagnant training and testing reward over [how many] episodes using the architecture described in the paper.
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.55]{images/reward_shallow.png}
+    \caption{Training and testing reward of the shallow architecture}
+    \label{fig:shallow_performance_graph}
+\end{figure}{}
+
+The algorithm, with the architecture presented in the paper and using the initialization above, failed to adequately solve the Sokoban task even for the simplest case $step\_distance=1$. Figure \ref{fig:shallow_performance_graph} shows stagnant training and testing reward over $5e4$ episodes using the architecture described in the paper.
 
 In the trivial case $step\_distance=1$, the game can always be solved by simply moving against the box adjacent to the player (thereby pushing the box onto its goal), but a single-layer network is not able to learn this nonlinear mapping. Much more interesting, then, is the question of how deeper networks trained using this algorithm would perform. 
 
@@ -482,16 +816,18 @@ To begin with, a new update formula was needed which could be used in the multi-
 The new eligibility trace formula for weights in layer $b$ is described in equations \ref{eq:elig_grad_mu} and \ref{eq:elig_grad_sigma}, where $x_b$ is the vector of network layer activations (with input layer $b=0$ and output layer $b=H-1$), $b \in \{0, ..., H-1\}$ and $x_{H-1} \in \mathbb{R}^O$ (vectors indexed starting at 0). The network would use the same component-wise activation function $tanh(\cdot)$ as in the single-layer case. Note that $w_b$ is only defined for $b \in \{0, ... , H-2\}$. 
 
 \begin{equation} \label{eq:elig_grad_mu}
-    e_\mu_{b, ij}(k) = |x_{b-1, i}(k)|\cdot(w_{b, ij}(k) - \mu_{b, ij}(k))\cdot\sum_{out=0}^{O-1}\frac{\partial x_{H-1, out}}{\partial w_{b, ij}(k)}
+    e_{\mu_{b, ij}}(k) = |x_{b-1, i}(k)|\cdot(w_{b, ij}(k) - \mu_{b, ij}(k))\cdot\sum_{out=0}^{O-1}\frac{\partial x_{H-1, out}}{\partial w_{b, ij}(k)}
 \end{equation}
 
 
 \begin{equation} \label{eq:elig_grad_sigma}
-    e_\sigma_{b, ij}(k) = |x_{b-1, i}(k)|\cdot(|w_{b, ij}(k) - \mu_{b, ij}(k)| - \sigma_{b, ij}(k))\cdot\sum_{out=0}^{O-1}\frac{\partial x_{H-1, out}}{\partial w_{b, ij}(k)}
+    e_{\sigma_{b, ij}}(k) = |x_{b-1, i}(k)|\cdot(|w_{b, ij}(k) - \mu_{b, ij}(k)| - \sigma_{b, ij}(k))\cdot\sum_{out=0}^{O-1}\frac{\partial x_{H-1, out}}{\partial w_{b, ij}(k)}
 \end{equation}
 
+\textbf{A note on the validity of these formulae:} Because of the difficulty in communicating detailed mathematical concepts per email, I do not claim that these update rules accurately reflect Prof. Hougen's instructions regarding backpropagation. Unfortunately, he was not able to respond to a final email (not added in this report) seeking confirmation that these formulae correspond to what he said in his email. The reader is encouraged to read Prof. Hougen's description (figure \ref{fig:hougen_mail_2}) for reference. Section \ref{sec:all_algoproblems_ssrl} discusses problems with the update formula in more detail, and I argue that even minor tweaks to the last summed-gradient terms in equations \ref{eq:elig_grad_mu} and \ref{eq:elig_grad_sigma}, the principal potential source of confusion, won't solve fundamental problems with the algorithm's update formulae that result from the way it handles rewards. 
 
-With this new update formula, the interpretation is again that differences of sampled weights from their mean $(w_{b, ij}(k) - \mu_{b, ij}(k))$ and $(|w_{b, ij}(k) - \mu_{b, ij}(k)| - \sigma_{b, ij}(k))$ are "experiments" of the network to discover beneficial parameter update directions (either greater or lesser), and the episode performance $(r(\tau) - \overline{r}(\tau))$ is feedback on the "result" of these experiments.
+
+With this new update formula, the interpretation is again that differences of sampled weights from their mean $(w_{b, ij}(k) - \mu_{b, ij}(k))$ and $(|w_{b, ij}(k) - \mu_{b, ij}(k)| - \sigma_{b, ij}(k))$ are "experiments" of the network to discover beneficial parameter update directions (either greater or lesser) and magnitudes, and the episode performance $(r(\tau) - \overline{r}(\tau))$ is feedback on the "result" of these experiments.
 
 The sum of the gradients is a new measure for how much influence this "experimental" weight change had on the output of the network. Updates to the weight parameters should be in proportion to how much of an effect changes to the weights have on the output, and whether that change is correlated with a positive or negative change in reward collected. The goal of the algorithm is to discover beneficial changes in the weight parameters through experiments (stochastic sampling) and observation of their outcomes.   
 
@@ -501,37 +837,51 @@ The sum of the gradients is a new measure for how much influence this "experimen
 
 To test the function of the new update rules, the algorithm was initialized in the same fashion as in the single-layer case. Because initial testing would be restricted to $step\_distance=1$, a relatively shallow architecture with $layer sizes = (49, 100, 50, 10, 4)$ was chosen, because this was presumed to be enough to learn to move the agent in the direction of an adjacent box without slowing training down excessively through network depth. 
 
-The algorithm was not able to solve even the simplest training case for Sokoban. Figure \ref{fig:deep_ssrl_performance_sokoban_graph} shows the training and testing error in the Sokoban environment with $step\_distance=1$. Performance was equivalent to random play, even after [how many] episodes. 
+\begin{figure}
+    \centering
+    \includegraphics[scale=0.45]{images/deep_Sokoban_performance.png}
+    \caption{Training and testing reward of the deep architecture.}
+    \label{fig:deep_ssrl_performance_sokoban_graph}
+\end{figure}{}
+
+The algorithm was not able to solve even the simplest training case for Sokoban. Figure \ref{fig:deep_ssrl_performance_sokoban_graph} shows the training and testing error in the Sokoban environment with $step\_distance=1$. Performance was equivalent to random play, even after 17,000 episodes. Training was terminated at this point due to the extreme demand on CPU and memory (see \ref{sec:game_troubles_sokoban}) and lack of training progress. 
 
 Some immediate explanations for this behavior come to mind: 
 
 1) The algorithm is not effective in this kind of task - it is meant for dynamic, continuous-output environments in which the entire output layer is used as input to a system (e.g. controlling a robot arm with $n$ degrees of freedom), whereas in Sokoban, \begin{equation*}
     \argmax_{out \in \{0, ..., O-1\}} x_{H-1, out}
-\end{equation*}{} is used as game input. 
+\end{equation*}{} is used as game input. This explanation was evaluated in section \ref{sec:mountain_car_deep_ssrl}. 
 
-2) The author did not implement the algorithm correctly. 
+2) The algorithm was appropriately chosen, but training hyperparameters such as episodes in training, weight parameter initialization, or network depth were incorrectly chosen for the task. 
 
-3) The algorithm was appropriately chosen and correctly implemented, but training hyperparameters such as episodes in training, weight parameter initialization, or network depth were incorrectly chosen for the task. 
+Regarding 2): While it cannot be ruled out that another configuration of hyperparameters would have been more optimally suited to the task, training should still have improved at least marginally over tens of thousands of episodes instead of stagnating or even receding like in the evaluations. 
 
-These explanations, as well as further problems and questions are addressed in more detail the following section and in section \ref{sec:all_problems_ssrl}. 
-\subsubsection{Mountain Car}
+\subsubsection{Mountain Car} \label{sec:mountain_car_deep_ssrl}
+In order to evaluate whether it was the choice of game that caused the failure of the algorithm, a similar architecture with $layer sizes = (2, 10, 10, 10, 1)$ was used to learn the simple trial game Mountain Car (implemented in the OpenAi Gym environment 'MountainCarContinuous-v0') with approximately continuous floating-point input and output. 
 
-In order to evaluate whether it was the choice of game that caused the failure of the algorithm, a similar architecture with $layer sizes = (2, 10, 10, 10, 1)$ was used to learn the simple trial game Mountain Car (implemented in the OpenAi gym environment 'MountainCarContinuous-v0') with approximately continuous floating-point input and output. 
+\begin{wrapfigure}{R}{}
+    \centering
+    \includegraphics[scale=0.4]{images/MountainCar_perf_graph.png}
+    \caption{Training reward in Mountain Car.}
+    \label{fig:mountain_car_deep_graph}
+\end{wrapfigure}{}
 
-Similarly disappointing performance (see figure \ref{fig:mountain_car_deep_graph}) suggests that the algorithm itself, either in its implementation or its design, is to blame. 
+Similarly disappointing performance (figure \ref{fig:mountain_car_deep_graph}) suggests that the algorithm itself, either in its implementation or its design, is to blame. Training reward completely flatlined at the minimal value after a few hundred episodes, and because $(r(\tau) - \overline{r}(\tau)) = 0$ from that point on, the algorithm ceased to make changes to its parameters. Presumably, the parameters were stuck in a local minimum such that even stochastic weight sampling (\ref{eq:weight_sample}) at every time step was not sufficient to find an action yielding more than minimal reward. Hence, training was stuck without possibility for recovery. 
 
-\pagebreak
+Training was stopped early at less than 2000 episodes due to the obvious failure of the algorithm and because training even $\approx1$ episode per second used memory to the point where a standard Lenovo Thinkpad X250 laptop crashed, making overnight training impossible. 
+
+\clearpage
 
 \section{SSRL: Problems and Critical Discussion} \label{sec:all_problems_ssrl}
 
-\subsection{Algorithmic} \label{sec:algoproblems_ssrl}
+\subsection{Algorithmic} \label{sec:all_algoproblems_ssrl}
 
-\subsubsection{Parameter divergence} \label{sec:algocritic_ssrl}
+\subsubsection{Parameter divergence} \label{sec:param_divergence_ssrl}
 
 \begin{figure}[h]
     \centering
     \includegraphics[scale=0.45]{images/means_explosion.png}
-    \caption{Means explode in a 4 layer network}
+    \caption{Means explode in a 4 layer network (Sokoban)}
     \label{fig:means_diverging_ssrl}
 \end{figure}{}
 
@@ -539,13 +889,13 @@ When training an agent using the algorithm, it could be observed (see figure \re
 
 This would lead to the effect that an agent would always make the same decision (i.e. the network would always produce the same arg max) over long periods of time spent training, because a single weight or group of weights would have an extreme influence on the output of the network. 
 
-This problem appears to occur for games like Sokoban in which all but few rewards are near zero and some are large. Of particular importance is the factor $(r(\tau) - \overline{r}(\tau))$ in weight updates \ref{eq:weightupdate_mu} and \ref{eq:weightupdate_sigma_clamp}: The average reward for random play in Sokoban is somewhere near $3.5$, and a successful completion of the game in one step gives 10.9 points. This means that for a game solved in a single step, which is about a quarter of the time for $step\_distance = 1$ with initial uninformed play, all weight means are incremented by their deviation from their mean $(w_{b, ij} - \mu_{b, ij}) =: y_{b, ij}$ multiplied by a factor of $10.9 - 3.5 \approx 7.4$, not yet considering gradients.
+This problem appears to occur for games like Sokoban in which all but few rewards are near zero and some are large. Of particular importance is the factor $(r(\tau) - \overline{r}(\tau))$ in weight updates \ref{eq:weightupdate_mu} and \ref{eq:weightupdate_sigma_clamp}: The average reward for random play in Sokoban is somewhere near $3.5$ for $step\_distance = 1$, and successful completion of the game in one step gives 10.9 points. This means that for a game solved in a single step, which is about a quarter of the time for $step\_distance = 1$ with initial uninformed play, all weight means are incremented by their deviation from their mean $(w_{b, ij} - \mu_{b, ij}) =: y_{b, ij}$ multiplied by a factor of $10.9 - 3.5 \approx 7.4$, not yet considering gradients.
 
 This effect is drastically apparent in deep networks, which can hold thousands of weights and in which it is statistically likely that \textit{some} weight is very far from its mean, which essentially guarantees that at least some weight in the network will receive an inappropriately large update. 
 
-Consider the effect winning for the first time has on weight updates. Until then, the agent will have earned an average reward somewhere between $-0.5$ and $0.5$. Applying the factor $(r(\tau) - \overline{r}(\tau))$ represents $10.9$-fold multiplication of all eligibility traces and $y_{b, ij}$ values for the network. Making matters worse, the gradients for some weights may be large with initial random initialization, and are generally large when other means in the network are large, further increasing the size of the parameter update. All factors compounded together mean that some means may grow orders of magnitude greater in a single step, which in turn leads back to the original problem of potentially causing the network to produce the same arg max every time and getting stuck in a rut in which the average reward corresponds to random play, and about once every four games the algorithm wins, further increasing $\mu_{b, ij}$ magnitudes.
+Consider the effect winning for the first time has on weight updates. Until then, the agent will have earned an average reward somewhere between $-0.5$ and $0.5$. Applying the factor $(r(\tau) - \overline{r}(\tau))$ represents $10.9$-fold multiplication of all eligibility traces and $y_{b, ij}$ values for the network. Making matters worse, the gradients for some weights may be large with initial random initialization, and are generally large when means in the network are large, further increasing the size of the parameter update. All factors compounded together mean that some means may grow orders of magnitude greater in a single step, which in turn leads back to the original problem of potentially causing the network to produce the same arg max every time and getting stuck in a rut in which the average reward corresponds to random play. About once every four games the algorithm wins, further increasing $\mu_{b, ij}$ magnitudes.
 
-Consider a particularly bad case that was observed in the 4-layer architecture used in training (figure \ref{fig:example_bad_step}): Because the agent had won its first game and lost the second game, weight updates were immediately multiplied by a factor on the order of $10$, resulting in an explosion in weight means by two orders of magnitude in a single step. 
+Consider a particularly bad case that was observed in the 4-layer architecture used in training (figure \ref{fig:example_bad_step}): Because the agent had won its first game and lost the second game, weight updates were immediately multiplied by a factor on the order of $10$, resulting in an explosion in some weight means by two orders of magnitude in a single step. 
 
 \begin{figure}%
     \centering
@@ -558,46 +908,90 @@ Consider a particularly bad case that was observed in the 4-layer architecture u
 
 It could also be observed that most $\sigma_{b, ij}$ values tended to approach $1.0$ or values close to it after thousands of episodes spent training, despite the fact that \[\forall\sigma_{ij} \in [0.05, 1], \forall\mu_{ij}\in\mathbb{R} : \E_{w_{ij}\sim\Psi(\mu_{ij} ,  \sigma_{ij})}[|w_{ij}(k) - \mu_{ij}(k)| - \sigma_{ij}(k)] < 0 \]
 
-This would be expected to lead to asymptotically convergent behavior of the algorithm as long as reward tends to improve over time, because it would mean that eligibility traces $e_{\sigma, b, ij}$ would tend to be negative, therefore leading to smaller variance in parameter sampling. However, because the algorithm did not improve, it had the effect of increasing variance. With increasing variance, weights vary even more, meaning that rare and random wins lead to even bigger explosions in $\mu_{b, ij}$ updates, further worsening the problem of exploding means in a vicious cycle of ineffective parameter updates. 
+This would be expected to lead to asymptotically convergent behavior of the algorithm as long as reward tends to improve over time, because it would mean that eligibility traces $e_{\sigma, b, ij}$ would tend to be negative, therefore leading to smaller variance in parameter sampling. However, because the algorithm did not improve, it had the effect of increasing variance. With increasing variance, $y_{b, ij}$ values increase in value, meaning that rare and random wins lead to even bigger explosions in $\mu_{b, ij}$ updates, further worsening the problem of exploding means in a vicious cycle of ineffective parameter updates. 
 
-\subsubsection{Efficacy of update formulae}
+\subsubsection{Efficacy of update formulae} \label{sec:update_problems_sssrl}
 
-It is the author's belief that one of the weakest links in the algorithm is in the update formulae for $\mu_{b, ij}$ and $\sigma_{b, ij}$ (both single and multi-layer versions). This is because credit assignment occurs only in a very loose way; the algorithm updates all weight parameters according to whether their deviations from normal behavior were observed to correlate with increased reward. This sounds appropriate in theory, but in practice the correlations between deviations $y_{b, ij}$ and $z_{b, ij} := |w_{ij}(k) - \mu_{ij}(k)| - \sigma_{ij}(k)$ and the weight configurations which resulted in high or low performance in an episode are too low for weight updates to be meaningful on non-asymptotic time scales. 
+It is my belief that one of the weakest links in the algorithm is in the update formulae for $\mu_{b, ij}$ and $\sigma_{b, ij}$ (both single and multi-layer versions). This is because credit assignment occurs in a very broad way: The algorithm updates all weight parameters according to whether their deviations from normal behavior were observed to correlate with increased reward. This sounds appropriate in theory, but in practice the correlations between deviations $y_{b, ij}$ and $z_{b, ij} := |w_{ij}(k) - \mu_{ij}(k)| - \sigma_{ij}(k)$ and the weight configurations which resulted in high or low performance in an episode are too low for weight updates to be meaningful on non-asymptotic time scales. Credit assignment is not sufficiently granular; as long as \textit{any} part of the network influences $(r(\tau) - \overline{r}(\tau))$, \textit{all} weight parameters are updated accordingly. 
 
 For a game like Sokoban, this effect is compounded by the fact that it is the \textit{highest output value} which determines agent action choice. As long as $ \argmax x_{H-1}$ remains unchanged, any number of weight combinations will lead to the same agent behavior. This means that whenever the network produces the correct output decision, even those weights which "voted for" a different action are positively updated, and in fact, because weight updates are proportional to the gradient, weights which voted very strongly \textbf{against} the correct output are also updated very strongly in the direction of their vote. 
 
-The network learns only "more of this", whatever "this" was, without regard for whether more is always better or to what extent "this" even resulted in a highly rewarded action. 
+The network learns only "more of this", whatever "this" was, without regard for whether more is always better or to what extent "this" even resulted in a highly rewarded action. Unfortunately, the algorithm cannot know \textit{which part} of its output led to increased or decreased reward, so it has to update its parameters as if \textit{all} changes were responsible for the changed feedback. 
 
-One could argue at this point that it is because Sokoban is a game with discrete output, where only the $\argmax$ is important, these considerations would apply differently in a more continuous game in which this algorithm is more "at home". Firstly, the algorithm was not successful in the "Mountain Car" trial game of this nature when evaluated.
+One could argue at this point that because Sokoban is a game with discrete output, where only the $\argmax$ is important, these considerations would apply differently in a more continuous game in which this algorithm is more "at home". Firstly, the algorithm was not successful in the "Mountain Car" trial game of this nature when evaluated.
 
-Secondly, imagine a hypothetical game in which an agent controls the virtual hand movement of a human player controlling a joystick at an arcade booth and receives the pixel output of the arcade booth at every timestep. The virtual human is playing the game Sokoban in the arcade booth; the agent's output into the game is a vector $x \in \mathbb{R}^4$: The virtual player moves the joystick in the direction of $\frac{y}{\lVert y \rVert }, y := \begin{pmatrix}x_0 + x_2 \\ x_1 + x_3\end{pmatrix}$, with $y = \begin{pmatrix}1\\0\end{pmatrix}$ corresponding to a movement of the joystick exactly to the right and $y = \begin{pmatrix}0\\1\end{pmatrix}$ corresponding to an upward movement (analogously for left and down). The virtual arcade booth then translates this joystick movement into an internal command converting the movement direction of the joystick into the closest move direction $d \in \{up, down, left, right\}$ within the game. 
+Secondly, imagine a hypothetical game in which an agent controls the virtual hand movement of a human player controlling a joystick at an arcade booth and receives the pixel output of the arcade booth as part of the game state at every time step. The virtual human is playing the game Sokoban in the arcade booth, and the agent's output into the game is a vector $x \in \mathbb{R}^4$. The virtual player moves the joystick in the direction of $\widetilde{y} := \frac{y}{\lVert y \rVert }$, \[y := \begin{pmatrix}1\\1\end{pmatrix} + \begin{pmatrix}tanh(x_0) \:\textbf{if}\: x_0 \geq x_1 \:\textbf{else} \: {-2} - tanh(x_1) \\tanh(x_2) \: \textbf{if} \:x_2 \geq x_3  \: \textbf{else} \: {-2} - tanh(x_3)\end{pmatrix}\] with $\widetilde{y} = \begin{pmatrix}1\\0\end{pmatrix}$ corresponding to a movement of the joystick exactly to the right and $\widetilde{y} = \begin{pmatrix}0\\1\end{pmatrix}$ corresponding to an upward movement (analogously for left and down). The virtual arcade booth then translates this joystick movement into an internal command converting the movement direction of the joystick into the closest move direction $d \in \{up, down, left, right\}$ within Sokoban. 
 
-This would be a continuous-output game with hidden internal discretization of the input corresponding exactly to the setup from the original Sokoban game. Simply moving the nonlinear mapping $x\mapsto \argmax x$ from the agent design to the structure of the game itself turns Sokoban into a "continuous" task. Therefore, a black-and-white distinction between discrete and continuous games is not warranted (one could easily imagine a game that mixes discrete and continuous elements - for instance if the same hand which controls the joystick in one part of the game would then have to learn to carry a cup through the arcade without spilling its contents).  
+This would be a continuous-input game with hidden internal discretization of the input corresponding exactly to the setup from the original (discrete) Sokoban game. Simply moving the discontinuous mapping $x\mapsto \argmax x$ from the agent design to the structure of the game itself turns Sokoban into a "continuous-input" task. Therefore, a black-and-white distinction between discrete and continuous games is in general not warranted (one could easily imagine a game that mixes discrete and continuous elements - for instance if the same hand which controls the joystick in one part of the game would then have to learn to carry a cup through the arcade without spilling its contents). A general-purpose reinforcement learning algorithm must therefore be able to master both types of output.
 
+\subsubsection{Potential Improvements} \label{sec:potential_improvements_ssrl}
+
+If one wanted to adapt this algorithm to be more effective, the first area of focus should be on fixing the exploding means problem. A potential solution might involve finding a way to standardize reward structure or preprocessing received rewards in order to minimize reward variance and circumvent the exploding means problem. 
+
+Two problems come to mind here: 
+
+1) Not all tasks have a known reward structure which invites reward preprocessing. 
+
+2) High reward variance is not itself a bad thing - in many games, rewards have a linear structure in which orders of magnitude of difference are possible and meaningful. The $100$th unit of currency won on the stock market is worth as much as the first, and $10n$ units are always worth $10$ times as much as $n$ units. 
+
+Clearly, it is not sufficient to do away with large reward variance alltogether. The problem might therefore be rephrased in terms of orders of magnitude: How can parameters be learned so that different orders of magnitude in reward structure do not lead to orders of magnitude of difference in weight parameter update behavior? 
+The solution to this problem should also consider the sizes of gradients in the network. Gradient sizes are the other source of runaway parameter updates, but backpropagation is too powerful an idea to give up entirely. 
+
+Perhaps the solution lies not in changing how the agent treats rewards, but in how the agent sets its weights. If there were some way to control $\mu_{b, ij}$ values, for instance by applying an additional step similar to the clamping step \ref{eq:weightupdate_sigma_clamp} for $\sigma_{b, ij}$ and forcing all weight means into the range $(-1, 1)$, it would be possible to maintain orders of magnitude of difference in weight sizes (making them arbitrarily small), without allowing weights to become arbitrarily large. 
+
+Next, consider the logic behind using the backpropagated gradient for determining eligibility: It serves as an approximation for the "degree of influence" the weight change had on the output of the network. 
+
+Gradients are only \textit{locally} good approximations to the the neural network. Specifically, \[\lVert f(x + a) - \left[f(x) + \mathcal{D}_f (x)\cdot a\right]\rVert \in \mathcal{O}(a^2)\]
+
+, where $\mathcal{D}_f$ denotes the total derivative of $f \in \matchcal{C^2}$. In areas with strong curvature (large second total derivative), sampled weights may be so far from their mean that they exceed the range of usefulness of the derivative as an approximation to their effect on the behavior of the network, i.e. the approximation error grows too large to be useful, of quadratic order. 
+
+Finding a good way to normalize weights might bring this gradient problem under control, too: If weights can be made to only minimally vary from their mean, then gradients can be be used as a more accurate approximation of the effect of deviations $y_{b, ij}$ and $z_{b, ij}$ on the output of the network, and eligibility traces would in turn be expected to be become more informative. 
+
+The next problem to address would be that of credit assignment: Can one find a better way to discover which weights are responsible for better/worse changes $r(\tau) - \overline{r}(\tau)$ in network performance? 
+
+At the cost of training speed, one could experiment with "shutting off" weight sampling for some weights, i.e. $w_{b, ij}(k) \leftarrow \mu_{b, ij} \: \forall (b, ij) \in S \subset N$ for some $S$, ($N$ being all network weights). This would allow for a more fine-grained approach to parameter search. In the extreme case, just a single parameter would be sampled and updated over an episode. 
+
+In this vein, perhaps \textbf{pruning} techniques could be employed in finding useful $S \subset N$ which have the greatest effect on the output of the network after training. Pruning techniques add to a standard training cycle an additional step: Weights with the smallest effect on the feed-forward output of the network are set to $0$. There are different criteria for defining "smallest effect", e.g. by gradient magnitude or by absolute weight size. The advantage of pruning in this case is that as the size of the network decreases, it is possible to examine fewer weights at a time without slowing training down to extreme levels (because there would otherwise be too many weights to examine each in detail), thereby avoiding the bigger issue of having to update very many weights for the contributions of a few. 
+
+This approach is inspired by the \textit{Lottery Winner Hypothesis} \cite{DBLP:journals/corr/abs-1803-03635}, which states that deep, randomly initialized networks contain a subnetwork which is well-initialized for training, and that this subnetwork can be discovered by iteratively training and pruning. After training a network for one cycle, the network is pruned and then reinitialized to the original (random) weights for all non-zero weights. After some iterations, this cycle yields a much smaller network which (so the hypothesis states) can reach the same level of performance after training as the original network. 
+
+Assuming one has found a way to update network parameters so that the update rules produce convergent parameter sizes (i.e. one has solved the exploding means problem), one could wrap training in an algorithm meant to improve sparsity of weight matrices: 
+
+\begin{algorithm}[H] \label{alg:pruning_algo_ex}
+ \KwData{Non-sparse network $M \subset N$ with predefined and constant random initializations $X_{M \subset N}$}
+ \KwResult{Non-zero weight indices of sparse, trainable network $\overline{M} \subset M$}
+ $subnetworks \leftarrow [M]$\\
+ \For{i = 1, ..., T}{
+  $net \leftarrow subnetworks[-1]$\\
+  train $net$ with $SSRL$ and random initializations $X_{net}$\\
+  $pruned\_net \leftarrow net.prune().get\_non\_zero\_weights()$\\
+  $subnetworks.append(pruned\_net)$
+ }
+ \Return $\overline{M} \leftarrow subnetworks[-1]$
+ %\caption{Model training structure using pruning}
+\end{algorithm}
 
 \subsection{Technical}
 
 \subsubsection{Training and game environments} \label{sec:game_troubles_sokoban}
 
-Much of the effort that went into this project was in manipulating the Sokoban game environment for training. The game environment provided by OpenAi's "gym" library was of poor code quality and didn't provide a simple way to initialize the game at a certain move distance from a solved state, as would usually be required in a learning task for this game. The authors found a code fragment online which randomly played games in reverse to move from a solved state to an unsolved state and returned the sequence of states and moves that yielded the final state. This output was used as the basis for training at a given $step\_distance$.
+Much of the effort that went into this project was in manipulating the Sokoban game environment for training. The game environment \cite{SchraderSokoban2018} provided by OpenAi's "Gym" library was of poor code quality and didn't provide a simple way to initialize the game at a certain move distance from a solved state, as would usually be required in a learning task for this game. Coauthor Perle wrote a custom method to randomly play games in reverse to move from a solved state to an unsolved state and which returned the sequence of states and moves that yielded the final state using adapted game code. This output was used as the basis for training at a given $step\_distance$.
 
 However, the game environment didn't allow for simple initialization "to a given state", meaning that custom functions were needed to load and set the game state within the environment, as well as changing all internal variables of the game environment to ensure correct rewarding etc. This was not a trivial task, because the internal variables of the Sokoban environment were used in many places in complicated ways, and it wasn't initially clear how many such variables even existed. Classes and functions within the environment were only minimally documented, if at all.  
 
 These efforts were hamstrung at every step by minor bugs and inconsistencies in the game code; for instance, games generated by the above function had the error that fields containing a "box not on goal" were marked with the integer "3" and fields containing a "box on goal" were marked as "4", but the game environment itself represented game states with these two values switched! It was up to the user to discover this bug and then manually change the game state vectors (and other field values that relied on it) with the correct values. 
 
-Another annoying inconsistency was that the OpenAi specification for discrete game input asks that actions begin indexed at 0. However, the actions "push": up, down, left, right were numbered between 1 and 4, and the actions "move": up, down, left, right were numbered between 5 and 8. Action 0 was "wait". This makes no sense at all, because "wait" is never an appropriate action in Sokoban (unlike in a shooter game, for example), meaning it should not have been added or should at least have been moved to the last action, and it was up to the user to figure out that "move" is a completely superfluous input, because the action "push" internally calls the function "move" whenever there is no box adjacent to the agent in the move direction. This was annoying because other gym games have discrete output beginning at 0, so the user has to implement an if-else check to determine whether to add 1 to the game input or not. 
+Another annoying inconsistency was that the OpenAi specification for discrete game input asks that actions begin indexed at 0. However, the actions "push": up, down, left, right were numbered between 1 and 4, and the actions "move": up, down, left, right were numbered between 5 and 8. Action 0 was "wait". This makes no sense, because "wait" is never an appropriate action in Sokoban (unlike in a shooter game, for example), meaning it should not have been added or should at least have been moved to the last action, and it was up to the user to figure out that "move" is a completely superfluous input, because the action "push" internally calls the function "move" whenever there is no box adjacent to the agent in the move direction. This was annoying because other Gym games have discrete output beginning at 0, so  if the user wants to apply the same algorithm to a different Gym game, they have to implement an if-else check to determine whether to add 1 to the game input or not. 
 
-Additionally, all gym environments were very slow and used extreme amounts of memory, meaning that it wasn't realistic to train agents in parallel on a standard laptop, not to mention generate games at the same time. Sokoban environments specifically tended to spontaneously crash due to a memory error, meaning the code needed to be failproofed in multiple locations to reload the environments in case of a memory exception. 
+Additionally, all Gym environments were very slow and used extreme amounts of memory, meaning that it wasn't realistic to train agents in parallel on a standard laptop, not to mention generate games at the same time. Sokoban environments specifically tended to spontaneously crash due to a memory error, meaning the code needed to be failproofed in multiple locations to reload the environments in case of a memory exception. Mountain Car in particular could only be trained at the rate of about one episode per second, which is painfully slow when considering the game's simplicity. 
 
-All of this was compounded by the fact that much development work had to go into loading and accessing stored game states and randomly using them during training. In a perfect world, the gym library could be used to write a game loop that is 20 lines long, in which $environment.reset()$ accepts a parameter to specify to what step distance the game environment should be initialized. Instead, what was required was a relatively large engineering effort to coordinate data access and storage in order to not have to train the algorithm starting at 20+ moves from the destination. 
+All of this was compounded by the fact that much development work had to go into loading and accessing stored game states and randomly using them during training. In a perfect world, the Gym library could be used to write a game loop that is 20 lines long, in which $environment.reset()$ accepts a parameter to specify to what step distance the game environment should be initialized. Instead, what was required was a relatively large engineering effort to coordinate data access and storage in order to not have to train the algorithm starting at 20+ moves from the destination. 
 
 Training and generating game states could be done in parallel with some engineering effort, but was still frustratingly inefficient because games were generated many more steps away from the solution than was needed (28 steps) both once during data generation \textit{as well as once during environment initialization from the environment's constructor}, meaning that the computational overhead just to play a single game was extremely large and involved multiple classes generating, saving, loading, and manually initializing the game environment for use.
 
-To what extent these problems came down to incompetence of the author is unclear; perhaps there was somewhere on the internet a guide which would have revealed a simpler way to load and set states. Close reviews of the game code and a good-faith effort to learn how to use the environment from online resources did not yield the understanding required to make using the Sokoban environment a simple task. 
-
 \subsubsection{Numerical libraries}
 
-Initially, the project was designed to rely on numpy for all data manipulation, Gaussian sampling, number generation, etc. This was entirely sufficient for the single-layer algorithm and was supported by the game environments, which internally saved game states and related vectors as numpy arrays. 
+Initially, implementation of SSRL was designed to rely on numpy for all data manipulation, Gaussian sampling, number generation, etc. This was entirely sufficient for the single-layer algorithm and was supported by the game environments, which internally saved game states and related vectors as numpy arrays. 
 
 Numpy also provided convenient methods for managing the parameters of the network. The initial approach was to interpret the entire set of neural network weights as a (reshaped and partitioned) vector sampled from a diagonal-covariance normal distribution, i.e. \[\boldsymbol{w_b} \sim \Psi(\boldsymbol{\mu_b}, diag(\boldsymbol{\sigma_b}))\] This approach was extremely slow, and it turned out to be much faster to use numpy's $apply\_along\_axis$ function and generating each weight as the output of a one-dimensional normal distribution.  
 
@@ -605,59 +999,897 @@ When implementing the deep architecture, however, backpropagation through the ne
 
 Some difficulty was involved in accessing the internal tensors of the nn.Module child class which held the agent's ANN; linear layers stored the bias weights and the conventional weights in a separate $n \times 1$ vector and $n \times m$ matrix, respectively, whereas the design choice until then had been to store all weights in one $n \times (m+1)$ matrix, where bias nodes would be appended as a $1.$ value to the end of a layer's activation. When accessing the network's parameters for backpropagation, the method $net.parameters()$ iterated over the weight matrix and the bias vector of a weight layer separately, meaning that there was no longer a one-to-one correspondence in the data structure used by the agent to hold the weight parameters and the internals of the nn.Module class, and there was an overhead in translating and accessing the right data fields when applying the update rules of the algorithm. 
 
-
-NEW QUESTIONS: 
-
-1) You say we should use the "exact same update formula" for the last layer - is that with or without the switch to $|x_b(k)|$? Do the eligibility trace formulas in the hidden layers use $|x_b(k)|$ or $x_b(k)$?
-
-2) Why do the eligibility traces for the weights in the last layer of the network not consider the gradient of the activation function in the last layer, while the eligibility traces for the weights in hidden layers do use it? (This is referring to the description you gave in your last email)
-
-3) Are the above eligibility trace formulae for the multi-layer case correct?
-
-4) Does the structure of the Sokoban task (in which the output of the network must be an integer label in [0, 3] and the arg max of the net's output is chosen) affect the formula for the eligibility traces or any other part of the update rules used by the algorithm? I understand that the algorithm was designed for continuous control tasks and not this type of output, and I plan to test it on one such task as well. 
-
-5) The following question applies anaologously to the eligibility trace formula for the standard deviations: What do you think of the suggestion that one should take the absolute value of the sum of the gradients (rightmost factor in equation 7), and not only the sum of the gradients? This I suggest because we do not know whether increasing or decreasing the final output of a node in the last layer of the network is better; we only know how much of an effect a weight's deviation from its average $w_{b, ij}(k) - \mu_{b, ij}(k)$ had on the output of the network (which we know by approximation through the derivative). Using the current formula, an increase in the weight which was associated with increased reward would not necessarily lead to the mean for that weight being positively increased \textbf{if} the gradient is negative - this defies my intuitive understanding of what the eligibility traces are supposed to do. 
-
-The logic is: if we increased the weight relative to its mean and it had a big effect on the output of the network, we should increase it in that direction if that increase resulted in a greater reward (or lower it if it resulted in lesser reward), proportionately to how big the effect on the output was. 
-
-It doesn't matter whether the change in the weight resulted in the outputs in the last layer increasing or decreasing per se, what matters is \textit{how great of a change it was}, because we don't actually know whether a numerically greater or lesser output is preferred for an arbitrary task. We only know what direction we moved the weights in, how much of a difference it made, and whether we got a greater reward after doing it. In summary, the suggestion would be to take the absolute value of all factors except for $w_{b, ij}(k) - \mu_{b, ij}(k)$
+Finally, my (Weichselbaumer) laptop did not support performing backpropagation calculations on the GPU using CUDA, meaning that training in the already slow Gym libraries was slowed down further by backpropagation calculations, which meant that it was difficult to train any model over many episodes, as minor tweaks or changes would require a new model to be trained for many hours. 
 
 
+\clearpage % ensures figures place correctly before references
 
-%\begin{figure}
- %   \centering
-  %  \includegraphics{images/email1.PNG}
-   % \caption{Question 1}
-    %\label{fig:jakob_mail_1}
-%\end{figure}
+\begin{appendices}
+\section{Test dataset for different room types.} \label{appendix:sokoban_games}
+\subsection{Sokoban-small-v0}
+\subsubsection{Unsolved}
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{images/appendix/test_dataset/sokoban-small-v0_unsolved.pdf}
+    \caption{loss of the "$10\times{10}$ grid with two boxes" model with a batch size of 1}
+\end{figure}
 
-%\begin{figure}
- %   \centering
-  %  \includegraphics{images/email2.PNG}
-   % \caption{Answer 1}
-    %\label{fig:hougen_mail_1}
-%\end{figure}{}
- 
-
-%\begin{figure}
- %   \centering
-  %  \includegraphics{images/email3.PNG}
-   % \caption{Question 2}
-    %\label{fig:jakob_mail_2}
-%\end{figure}{}
+\clearpage
+\subsubsection{Solutions}
 
 
-%\begin{figure}
- %   \centering
-  %  \includegraphics[width=.8\textwidth, left]{images/email4.PNG}
-   % \caption{Answer 2}
-    %\label{fig:hougen_mail_2}
-%\end{figure}{}
+\begin{center}
+\begin{longtable}{ll}
+\caption{A simple longtable example}\\
+\toprule
+game idx & DeepCubeA\\
+\midrule
+\endfirsthead
+sokoban-small-v0 1 & \verb|↑↑↓↓←↑↑| \\
+sokoban-small-v0 2 & \verb|↓→←↑→→→| \\
+sokoban-small-v0 3 & \verb|←←↓←↑→→↑↑↑→→↓←↑←↓| \\
+sokoban-small-v0 4 & \verb|↑↑→↑↑←←↓→→←↓↓←←↑→↓→↑←↑→| \\
+sokoban-small-v0 5 & \verb|→→↑→↑↑←↓→↓←↓↓→↑| \\
+sokoban-small-v0 6 & \verb|↓→→| \\
+sokoban-small-v0 7 & \verb|↑→↑↑←←↓→←←←↑→→→| \\
+sokoban-small-v0 8 & \verb|↓←↓→↓→↓→→↑←←←↓←↑↑↑| \\
+sokoban-small-v0 9 & \verb|→↓→↑←←↓←←↑→→→| \\
+sokoban-small-v0 10 & \verb|←↓↓→→→→↓←↑←←←↑↑→↓←↓→→| \\
+sokoban-small-v0 11 & \verb|↓←↓↓→→→←←←↑↑→↓←↓↓→→↑←| \\
+sokoban-small-v0 12 & \verb|↓→↓→| \\
+sokoban-small-v0 13 & \verb|←→→| \\
+sokoban-small-v0 14 & \verb|→→↑←| \\
+sokoban-small-v0 15 & \verb|→←↑↑→↓↓| \\
+sokoban-small-v0 16 & \verb|↓→↓→→↑↑←↓→↓←↑←←↑→| \\
+sokoban-small-v0 17 & \verb|←↑| \\
+sokoban-small-v0 18 & \verb|↓←↑←↓↓↓←↓→| \\
+sokoban-small-v0 19 & \verb|↑←←→→→↑←←| \\
+sokoban-small-v0 20 & \verb|→↓↑←↓↓| \\
+sokoban-small-v0 21 & \verb|→↑↓→| \\
+sokoban-small-v0 22 & \verb|↑↑←↑→↓↓↓→→↑←↓←↑↑| \\
+sokoban-small-v0 23 & \verb|←←→↓←↑↑←←↓→↓→→↑←| \\
+sokoban-small-v0 24 & \verb|↑↑↓←←↑→→↑↓↓→↑↑| \\
+sokoban-small-v0 25 & \verb|↑←↓←↓↑→↓↓←↓→| \\
+sokoban-small-v0 26 & \verb|→→←←↑→| \\
+sokoban-small-v0 27 & \verb|←→↑| \\
+sokoban-small-v0 28 & \verb|→↑↑←↓→↓←←←↑→↓→↑↑↑| \\
+sokoban-small-v0 29 & \verb|↑↑↑↓↓↓←↑↑↑| \\
+sokoban-small-v0 30 & \verb|↑→↑←→↑→→↓←←↑←←↓↓↓| \\
+sokoban-small-v0 31 & \verb|↓↓↑↑→↓↓| \\
+sokoban-small-v0 32 & \verb|↓↓↓↑→↑| \\
+sokoban-small-v0 33 & \verb|↑←↑←←↓→↑→↓| \\
+sokoban-small-v0 34 & \verb|↑↑→↑←↓↓↓→↑↑| \\
+sokoban-small-v0 35 & \verb|←→↓←↑←←↓←↑| \\
+sokoban-small-v0 36 & \verb|↓↑←↓↓| \\
+sokoban-small-v0 37 & \verb|↑←→→↑←←↓←| \\
+sokoban-small-v0 38 & \verb|↓↓↓↑↑←↑←↓↓| \\
+sokoban-small-v0 39 & \verb|←↓↓↓→→→↑←←←↓←↑→↑↑→↓↓→↓←| \\
+sokoban-small-v0 40 & \verb|↓→↓↓←| \\
+sokoban-small-v0 41 & \verb|→↑→↓↓←↓→↑←↑↑↑←←↓→→↑→↓↓| \\
+sokoban-small-v0 42 & \verb|←↓←↓→→↑→↑←| \\
+sokoban-small-v0 43 & \verb|↓↓→↓↓←←↑↑→↓←↓→→| \\
+sokoban-small-v0 44 & \verb|↓←→↑←←| \\
+sokoban-small-v0 45 & \verb|←↓←↑↓←←↑↑↑→↑→→↓↓↓←↑↑→↑←| \\
+sokoban-small-v0 46 & \verb|↓↑→→↓←←↓←↓↓→→↑←←| \\
+sokoban-small-v0 47 & \verb|↑←↑↑→→↓| \\
+sokoban-small-v0 48 & \verb|↓←←| \\
+sokoban-small-v0 49 & \verb|↓←←←→→→↑↑←↑↑→↓↓↓| \\
+sokoban-small-v0 50 & \verb|←↓↓→→→←←↑←↑→| \\
+sokoban-small-v0 51 & \verb|↓↓←←↓↓→↑| \\
+sokoban-small-v0 52 & \verb|↑←↑↑↑→→↓←→↓←↑←←→↓| \\
+sokoban-small-v0 53 & \verb|←→↑↑←↓↓→↓←←| \\
+sokoban-small-v0 54 & \verb|→←↑→→→↓→↑↑| \\
+sokoban-small-v0 55 & \verb|↑→→↓→↑←←←↑↑←↑→→→| \\
+sokoban-small-v0 56 & \verb|↓←↑←↓→↓→| \\
+sokoban-small-v0 57 & \verb|→→↓→→↑↑←↓↑←←↓←↑| \\
+sokoban-small-v0 58 & \verb|→←↑↑↑| \\
+sokoban-small-v0 59 & \verb|↑→←↓←←↑→| \\
+sokoban-small-v0 60 & \verb|↓←↓←↓↓→↑| \\
+sokoban-small-v0 61 & \verb|↓↓→↑↓↓↓←↑←↑→| \\
+sokoban-small-v0 62 & \verb|→↓↓→→↑←→↑↑←↓←↓↑→↓| \\
+sokoban-small-v0 63 & \verb|↓→←↑→→| \\
+sokoban-small-v0 64 & \verb|↑→| \\
+sokoban-small-v0 65 & \verb|↑→↑←←↓→↓←| \\
+sokoban-small-v0 66 & \verb|↑↑←←←↓→↑→→↓↓←↑| \\
+sokoban-small-v0 67 & \verb|↓→↓→↓↓←↑↑←↑→↓→↑←←←←↓→| \\
+sokoban-small-v0 68 & \verb|←↓↓↓↓→→↑←↓←↑↑←↑↑→→↓←→↓↓→↓←| \\
+sokoban-small-v0 69 & \verb|↓↓↑←| \\
+sokoban-small-v0 70 & \verb|↓←←←↓→↑→↓→| \\
+sokoban-small-v0 71 & \verb|→↑→↓↓←↑←↑←←↓→→→↑→↓| \\
+sokoban-small-v0 72 & \verb|→↓↓←←←↓→→↑→↑↑←↓→↓←↓←←↑→→| \\
+sokoban-small-v0 73 & \verb|↑↓←↑↑↑| \\
+sokoban-small-v0 74 & \verb|↑←↑←↑→→↑→↓↓| \\
+sokoban-small-v0 75 & \verb|↑→↑| \\
+sokoban-small-v0 76 & \verb|←↑←↓↑←←↓↓→↑←↑→| \\
+sokoban-small-v0 77 & \verb|←↓→←↓→↓↓←←↑→→↑→↑| \\
+sokoban-small-v0 78 & \verb|←↓←↑↑↑↓←↓←↓→| \\
+sokoban-small-v0 79 & \verb|←↓←↑↑↑→↑←↓↓↓→→↑←↓←↑↑| \\
+sokoban-small-v0 80 & \verb|↓→↑→↑| \\
+sokoban-small-v0 81 & \verb|→↑↓→→| \\
+sokoban-small-v0 82 & \verb|→→→←←↓←↓→→→↑→↓| \\
+sokoban-small-v0 83 & \verb|↓→↓←↓→↓←←←→↑↑→↑←←| \\
+sokoban-small-v0 84 & \verb|↓↓↑↑←↓| \\
+sokoban-small-v0 85 & \verb|←→↑↑↑←←↓↓↓←←↑↑→↑→↓| \\
+sokoban-small-v0 86 & \verb|↓→←↑←←↓→| \\
+sokoban-small-v0 87 & \verb|↓↑←←↓→→↓| \\
+sokoban-small-v0 88 & \verb|←←←↓↓→↑| \\
+sokoban-small-v0 89 & \verb|→↑←↓←↑→↑←←→→↑←↑←↓| \\
+sokoban-small-v0 90 & \verb|←↑→↓→↑↑| \\
+sokoban-small-v0 91 & \verb|↓←↑→↓→→↑←←←↓←↑| \\
+sokoban-small-v0 92 & \verb|←→→| \\
+sokoban-small-v0 93 & \verb|↑↑↓↓←←↑→→| \\
+sokoban-small-v0 94 & \verb|↓→↓↓←←←←↓→→↑→→↑↑←↓→↓←←←| \\
+sokoban-small-v0 95 & \verb|→↑←↓←↑↑→↑↑→↓↓| \\
+sokoban-small-v0 96 & \verb|↑↓↓| \\
+sokoban-small-v0 97 & \verb|←←↑←↓→→→↑←| \\
+sokoban-small-v0 98 & \verb|↓→| \\
+sokoban-small-v0 99 & \verb|←↑←↑→→→←←↓→↓→↑↑| \\
+sokoban-small-v0 100 & \verb|←↓←↓→↑→↓←↓→→↑→↑←←↓←↑| \\
+\bottomrule
+\end{longtable}
+\end{center}
 
 
-\end{document}
+\clearpage
+\subsection{Sokoban-small-v1}
+\subsubsection{Unsolved}
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{images/appendix/test_dataset/sokoban-small-v1_unsolved.pdf}
+    \caption{loss of the "$10\times{10}$ grid with two boxes" model with a batch size of 1}
+\end{figure}
 
+\clearpage
+\subsubsection{Solutions}
 
+\begin{center}
+\begin{longtable}{ll}
+\caption{A simple longtable example}\\
+\toprule
+game idx & DeepCubeA\\
+\midrule
+\endfirsthead
+sokoban-small-v1 1 & \verb|←↓←→↑←←→→↑→↑↑←↓| \\
+sokoban-small-v1 2 & \verb|→←←↑→| \\
+sokoban-small-v1 3 & \verb|↑↑←↑→←←←↓→↓→↑↓→| \\
+sokoban-small-v1 4 & \verb|↓←↓| \\
+sokoban-small-v1 5 & \verb|→→→↑←→↓↓→↑↓↓↓←←↑→↓→↑| \\
+sokoban-small-v1 6 & \verb|↑↑↑→→↓↓←↓←↑↑↓→↑| \\
+sokoban-small-v1 7 & \verb|←↓↑→→↓←↓←↑↓←| \\
+sokoban-small-v1 8 & \verb|↓←↓→↓→↑↑←←←←↓→→←↓→↑→| \\
+sokoban-small-v1 9 & \verb|←↓←←←↑↑↑↓→↓←↓→→→| \\
+sokoban-small-v1 10 & \verb|↑←↑↑→→↓←↓→| \\
+sokoban-small-v1 11 & \verb|↓↓↓↑↑→→↓←↓←↑↑→↑←| \\
+sokoban-small-v1 12 & \verb|→→↓→↑←←←↓→→←←↑↑↑→↓↓←↓→| \\
+sokoban-small-v1 13 & \verb|↑↑↓↓←←↑→↓→↑←↑| \\
+sokoban-small-v1 14 & \verb|↓↓→→↑←↑←↓| \\
+sokoban-small-v1 15 & \verb|←←↑←←↓↓↑↑→→↓←↑←↓→→→→↑←←←| \\
+sokoban-small-v1 16 & \verb|↓←→↑←←←↓←↑→→→→↑↑↑←| \\
+sokoban-small-v1 17 & \verb|→→→↓↑↑→↓←←←←↑→→→| \\
+sokoban-small-v1 18 & \verb|↑↑↑→→↓↓↑↑←←↓→↓| \\
+sokoban-small-v1 19 & \verb|←←↑←↓→→→↓↓←↑→↑↑←| \\
+sokoban-small-v1 20 & \verb|↓←↓←↑↓→↓↓←↑↑| \\
+sokoban-small-v1 21 & \verb|←←↑↓→→↑←↑←←↓→↓→↑| \\
+sokoban-small-v1 22 & \verb|←↓↓←→↑↑←↓↓↑←↓| \\
+sokoban-small-v1 23 & \verb|←↓←←↓↓→↑→↓→↑| \\
+sokoban-small-v1 24 & \verb|↓←→↑↑←←↓→↑→↓→→↑←←←| \\
+sokoban-small-v1 25 & \verb|↓←↓↓→→↑←↓→→→↑←↓←←↑↑↑→→↓↓→↓←| \\
+sokoban-small-v1 26 & \verb|↑←↑→→→←←↓→↓→↑↑↑←↑←↓↓←↓→↓→↑↑↑| \\
+sokoban-small-v1 27 & \verb|→←↓↓↓↑↑→→→| \\
+sokoban-small-v1 28 & \verb|→←↑↑→→↓←→↑→→↓←| \\
+sokoban-small-v1 29 & \verb|→→↓→→↑↑←↑←↓↓←←↑→↑→↓→↓↓| \\
+sokoban-small-v1 30 & \verb|→↓↑←↓↓| \\
+sokoban-small-v1 31 & \verb|→↓→←↑←↑↑→↓↓→| \\
+sokoban-small-v1 32 & \verb|←←↓↓↓→→↑←←←↑↑→→→↓←| \\
+sokoban-small-v1 33 & \verb|←↓←↑↑↑↓↓↓←←↑→↑↑| \\
+sokoban-small-v1 34 & \verb|↓↓←↓←←↑→↑→↓→→↑↑←↓→↓←| \\
+sokoban-small-v1 35 & \verb|↓↓↑↑←←↓→↓↓→↑←↑↑→↓↓| \\
+sokoban-small-v1 36 & \verb|↓↓↓↑→↓↑←↑↑→↓| \\
+sokoban-small-v1 37 & \verb|←←→→↑↑←↓→↓←↑←←↑→| \\
+sokoban-small-v1 38 & \verb|↑↓→→↑←←↑←↑←↑→→→↓←↓←↑| \\
+sokoban-small-v1 39 & \verb|→→↑←→→↓↓↑←↓↓←↓→| \\
+sokoban-small-v1 40 & \verb|←↓←↓↓→→↑| \\
+sokoban-small-v1 41 & \verb|↓↓→→↑↑→↓←↓→←←←↑→←↑→| \\
+sokoban-small-v1 42 & \verb|→↑→↑↑→→↓←↑←←↓↓→↑←↑←↑→→←↓→→| \\
+sokoban-small-v1 43 & \verb|←→↑←←→↓←←↓←↑↑↓→→→→↓↓←↑→↑←←←↑| \\
+sokoban-small-v1 44 & \verb|↑↑↓↓→↑↑| \\
+sokoban-small-v1 45 & \verb|↑↑→↑←↓↓↓→↑↑←↑←↑←←↓↓→→→| \\
+sokoban-small-v1 46 & \verb|→→→↑↑↓←↓←←↑→→| \\
+sokoban-small-v1 47 & \verb|←↓↓↓→↓←↑↑↑↑←←↓→↑→→↓↓←↑→↑←| \\
+sokoban-small-v1 48 & \verb|↑←↑→↑→↑←←↓↓| \\
+sokoban-small-v1 49 & \verb|↓←←↓←←↑↑→↓↑→| \\
+sokoban-small-v1 50 & \verb|→↓→→↑↑↑↓↓↓←←↑→↑↑| \\
+sokoban-small-v1 51 & \verb|↑←↑↓→↑↑→→| \\
+sokoban-small-v1 52 & \verb|↑←↑↑↑→→↓←→↓↓←←↑→| \\
+sokoban-small-v1 53 & \verb|↑↑→↓↑↑→→↓←↓| \\
+sokoban-small-v1 54 & \verb|↓↓↓↑→→↑←→→| \\
+sokoban-small-v1 55 & \verb|↓↑←←↑↑→→↓↓→↓↓←↑→↑←←↑| \\
+sokoban-small-v1 56 & \verb|↓↓←↓↓→→→→↑←↓←←←↑↑→↑↑←↓→↓↓←↓→→→↑←↓←↑↑| \\
+sokoban-small-v1 57 & \verb|↑↑→→↓←→↓←←↑| \\
+sokoban-small-v1 58 & \verb|←↓←←↑←↓↓↓↑→↑→→↑←←| \\
+sokoban-small-v1 59 & \verb|↓←→↑↑↑↑→→↓←↑←↓↓↓→↑↑→↑←←| \\
+sokoban-small-v1 60 & \verb|↓→↓↓←←↑←←↑→↑→↓| \\
+sokoban-small-v1 61 & \verb|→→→↑→↓←←←←↓↓→↑←↑→→←←↑→→↓→| \\
+sokoban-small-v1 62 & \verb|→→←↓→←↓←←↑→| \\
+sokoban-small-v1 63 & \verb|↑↑↑↓←↑↓→↓↓←↑| \\
+sokoban-small-v1 64 & \verb|←↓←←↑↑→←↓↓→→↑→→↓←←↑←| \\
+sokoban-small-v1 65 & \verb|↓→→→↓↓←↓←←↑→→↓→↑↑↑↓↓←↑↑←←↓| \\
+sokoban-small-v1 66 & \verb|↓→→↓↓←←↑→↓→↑| \\
+sokoban-small-v1 67 & \verb|←↑→↑↑←←↓→| \\
+sokoban-small-v1 68 & \verb|←←→↓←←→↓→| \\
+sokoban-small-v1 69 & \verb|←→↓←| \\
+sokoban-small-v1 70 & \verb|↑←↑↑→↓↑→→↓←←→↓↓←↑↑→↑←| \\
+sokoban-small-v1 71 & \verb|↓↓←↑↓↓↓→←↑→| \\
+sokoban-small-v1 72 & \verb|↑↑→↑→↑←↓←←↓→↓↓←↑↑←↑→→| \\
+sokoban-small-v1 73 & \verb|←↓↓↑↑←←↓←↓→| \\
+sokoban-small-v1 74 & \verb|→↓↓→→↑←| \\
+sokoban-small-v1 75 & \verb|↑←→↓←| \\
+sokoban-small-v1 76 & \verb|↓←←↑←←↑↑→→↓←↓←↑↓↓→→↑↓→→↑←←←↓←↑→↑↑→↓| \\
+sokoban-small-v1 77 & \verb|→↓↑←↓←↓↓↑↑→↓→| \\
+sokoban-small-v1 78 & \verb|→↓↓↑←↑←↓↓↑↑→→→↓→↓←←←| \\
+sokoban-small-v1 79 & \verb|←↑↑↓↓↓←←↑↑→←↓↓→→↑↑| \\
+sokoban-small-v1 80 & \verb|↓↓←↑←←←↓↓↓→→→↑↑→↑←←←↑←↓↓↑→→→→↑←←| \\
+sokoban-small-v1 81 & \verb|→→←←↓↓→↑→| \\
+sokoban-small-v1 82 & \verb|→↑→→→↓↓←↑↓→↓↓←↑→↑↑↑←←←↓→→↑→↓↓↓←↑↑←↑→| \\
+sokoban-small-v1 83 & \verb|↓↑←↓←↓↓→→←←↑↑→→↓| \\
+sokoban-small-v1 84 & \verb|←↓↓←←↑↑↑↓↓↓→→↑←↓←↑↑↓→↑↑| \\
+sokoban-small-v1 85 & \verb|←↑↑→→→↓↓←←↑→←←↑→| \\
+sokoban-small-v1 86 & \verb|→→←←↑→→←↓←↓→→| \\
+sokoban-small-v1 87 & \verb|←→↑↑↑←←↓→| \\
+sokoban-small-v1 88 & \verb|→→→↑←↑←←↑→→↓↓↓←←↑↑| \\
+sokoban-small-v1 89 & \verb|←↓←←↓↓→→↑↑↑→↑←←↓↓→↓←| \\
+sokoban-small-v1 90 & \verb|→↑→↓↓↓←↑↑→↑←←↓→↓↓↓←←↑←↑↑→→↑→→↓↓←↑| \\
+sokoban-small-v1 91 & \verb|↑→↑↑←↑←↓↓↑→→↓↓←↑↓←←| \\
+sokoban-small-v1 92 & \verb|←←↓→↓←↑↑↑←←↓↓→| \\
+sokoban-small-v1 93 & \verb|→→↓→↓←←←↓←↑→→→↑↑←←↓→→| \\
+sokoban-small-v1 94 & \verb|←←←→→↓←←→→→↓←←←| \\
+sokoban-small-v1 95 & \verb|→↓←↓←←↓→↑→→| \\
+sokoban-small-v1 96 & \verb|↓→↓←←←↑↓→→↑↑→↑↑←↓↓↓→↓←←| \\
+sokoban-small-v1 97 & \verb|→→→↑→↑←←←↓←↑↑↓→→→→↑↑←↓→↓←←←| \\
+sokoban-small-v1 98 & \verb|←↓↓↓↑→→↑←←→→→↑←←←| \\
+sokoban-small-v1 99 & \verb|↓→→→←←←↑→←↑↑→↓↓→←←↓→→| \\
+sokoban-small-v1 100 & \verb|←↑←↑↑←←↓→→→↓↓↓←←↑↑↑←↑→| \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\clearpage
+\subsection{Sokoban-v0}
+\subsubsection{Unsolved}
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{images/appendix/test_dataset/sokoban-v0_unsolved.pdf}
+    \caption{loss of the "$10\times{10}$ grid with two boxes" model with a batch size of 1}
+\end{figure}
+
+\clearpage
+\subsubsection{Solutions}
+
+\begin{center}
+\begin{longtable}{ll}
+\caption{A simple longtable example}\\
+\toprule
+game idx & DeepCubeA\\
+\midrule
+\endfirsthead
+sokoban-v0 1 & \verb|↓↓↓↓↑↑↑→→→→↓↓↓→↓←| \\
+sokoban-v0 2 & \verb|←←↑←←←←↓←↑↑→↓→→→→↑→→↓←←←←←←↓←↑| \\
+sokoban-v0 3 & \verb|↓↓←↓←↓←↓→→→↑↑←↑→↓←↓↓←↓→→→←↑↑→↓| \\
+sokoban-v0 4 & \verb|↓→↓←↓→↓←←↑→↑↑←↓↓←↓↓←↓↓→→→↑↑↑←←→→→↑←←←←←↓←↑| \\
+sokoban-v0 5 & \verb|→→↓←↑←↓↓↓↓↓↓↑↑↑→↑←↑↑→→↓←↑←↓↓↓↓↓↑↑↑↑↑→→→→→| \\
+sokoban-v0 6 & \verb|←↑↑↓↓←←←↑↑←←←↑→| \\
+sokoban-v0 7 & \verb|←↓↓←↓←←↑→←↑→→↑←↑→→| \\
+sokoban-v0 8 & \verb|↓←←→→↑→→↓←↓←←←↓←←←→→→↑↑→↓→↓←←←| \\
+sokoban-v0 9 & \verb|↑→↑←→→↑↑←←←←↓→↓↓→↓←↑↑→→↑→↑←←←| \\
+sokoban-v0 10 & \verb|←←↓↓↓↓←←↑↑→↑←←↑←↓→→↓↓↓→↑↑→↑←←| \\
+sokoban-v0 11 & \verb|↓↓→↓↓↓←↓↓→↑↑←↓↓←←↑→→↑→↑↑↑↑| \\
+sokoban-v0 12 & \verb|↑↑↑↓↓↓↓↓←↑↑↑↑↑↑↓↓↓↓↓↓→→↑↑↑↑↑↑←↑→| \\
+sokoban-v0 13 & \verb|←←↑←↑↑↑↓↓↓→↓→→↑←←↓←↑↑| \\
+sokoban-v0 14 & \verb|→→↑←←←←↓→→←↓↓→↑↑←↑→→→→↓←←←↓←↑| \\
+sokoban-v0 15 & \verb|←↓←↑↑↑↓→→↑←←↓↓↓↓→| \\
+sokoban-v0 16 & \verb|↑←↑→↓→→↑↑↑→↑←←↑←←| \\
+sokoban-v0 17 & \verb|→←←↑←↑| \\
+sokoban-v0 18 & \verb|←←←↑←↓↓↓↓↓←↓↓→→↑←←→→↓→→→→↑←→↑↑| \\
+sokoban-v0 19 & \verb|↓←←↑←←↓→→→→→↓→↑←←↑←←←↓←←↓→→→| \\
+sokoban-v0 20 & \verb|→→←←↑→↑→→↓↓↓↓↓↓←↓→→→↑→→↑←←←↓←↑↑↑| \\
+sokoban-v0 21 & \verb|←←←←↑←←↓←↑→→→↓←→→→↑←| \\
+sokoban-v0 22 & \verb|→→←↓→↑→↓↑→↑↑↓↓→→| \\
+sokoban-v0 23 & \verb|←↑←←↓↓←↓→↑→↑↓↓↓←↓←↓→| \\
+sokoban-v0 24 & \verb|↑←↑↑→↑↑←↓←↓↓↓→→↑↑↑←↓↓↓| \\
+sokoban-v0 25 & \verb|→→↑→↓↓→→↑←←↑←↓←↓→→←←↓←↓↓| \\
+sokoban-v0 26 & \verb|←↑←←↓↓↓↓→↓↓←↓←↑↑↑↑→↑↑↑→→↓←↑←↓| \\
+sokoban-v0 27 & \verb|←←←←↑↑←←←↓↓→↑→| \\
+sokoban-v0 28 & \verb|↓↓←↓↓↓↑↑↑↑→↓↓↓↓↓| \\
+sokoban-v0 29 & \verb|↑→↑↓←←↑↑→→| \\
+sokoban-v0 30 & \verb|←←←←←↑←↓↓↑→↓↓↓↓↓←↓→→↑←↑↑↑↑↑→→↓←↑←↓↓↓↓| \\
+sokoban-v0 31 & \verb|→→→↓→→→↑→↓←←←←↑←←←↓→→| \\
+sokoban-v0 32 & \verb|↑↓→→↑←←↑↑↑↓↓↓→↑↑↑↑↑→↑←←←←←| \\
+sokoban-v0 33 & \verb|↓↓→→→↑←↑↑→↑↑←↓↓↓↓↓←←↑↑→↓| \\
+sokoban-v0 34 & \verb|↓↓→↓↑←↑↑→↓| \\
+sokoban-v0 35 & \verb|←↓↓↓↓↓←←↓↓→↑↓→↑←↑→←←↑→→↓→↑↑→↑↑←| \\
+sokoban-v0 36 & \verb|←←→↓←←←↑←↓↓↓↓↓←↓↓→→↑←↓←↑→↑↑↑→↑↑→→→→↓↓←↑→↑←←←←↑←↓↓↓↑↑→→→↑←| \\
+sokoban-v0 37 & \verb|↑→↑↑←↑→↓↓→→←←↓←↑↑| \\
+sokoban-v0 38 & \verb|↓↓↓↓→↑↑←↑→↑↑↓→→→→↓→→↑←| \\
+sokoban-v0 39 & \verb|↓↓←↓↑←↓→↓↓→↓←| \\
+sokoban-v0 40 & \verb|←↑↑↑↑←↓↓→↓↓←↓↓→↑↑↑←←←↓←↑↑| \\
+sokoban-v0 41 & \verb|↑←↑↓→↑↑←→→↑←←→→↑←←←←→→↓←←←| \\
+sokoban-v0 42 & \verb|←←←←↓←←←↑→→→→↓→→→↑↑↑↑↑↑←←←←→↓↓→↓←←←←←| \\
+sokoban-v0 43 & \verb|↑↑←↑→→↓→→↑→↓↑→→↓←←←←←↑→→→→←←↓←←↓←↑←↑→| \\
+sokoban-v0 44 & \verb|↑↑↑←↓→↑↑↑↑←↓↓→↓↓←↓| \\
+sokoban-v0 45 & \verb|↓←↓↓→↓↓↑↑→→→→| \\
+sokoban-v0 46 & \verb|↑←←↑←←↓→→↓→↑→↓↓↓←↑↑↑→↑←←←| \\
+sokoban-v0 47 & \verb|→↓→→↑→→↓←↑←←↓↓←←←↑→↑→→→| \\
+sokoban-v0 48 & \verb|←↑↑→→↓←→↑↑↑←↑←↑→↓↓↓↓←↓↑→→↓←↓←←←←↑←←↓↓→↑→→→→→↑↑←↓→↓←←| \\
+sokoban-v0 49 & \verb|↓↑→↓←↓→↓→↓↓| \\
+sokoban-v0 50 & \verb|←→↓↓↓←↑↑←↑↑→↑←→↓↓←↓→↑→↓↓←↓→| \\
+sokoban-v0 51 & \verb|↑↑←↓↓↓↓→↑↑↑←↑↑←←↑→↓→→↑↑←↓→↓←| \\
+sokoban-v0 52 & \verb|←←↓→←←←↑↑↑↑←↑←↑→↓→→→↑→↓| \\
+sokoban-v0 53 & \verb|→←↑→→→↓→↑↑←↓←←↓→→←←←↓→→→→↑↑| \\
+sokoban-v0 54 & \verb|←←←←→→→→↑↑←←←| \\
+sokoban-v0 55 & \verb|←→↑←←↑←↓↓←↑↑| \\
+sokoban-v0 56 & \verb|→↑→→→↓→↓→↑↑↓←←↑→↓←↓←←↑←↑→→→| \\
+sokoban-v0 57 & \verb|↑↑↑↑↑↑↓→→↑↓↓→↓→| \\
+sokoban-v0 58 & \verb|→↑↑←←↓↑←←→→↓→↓→↓↓↓←↑→↑←←| \\
+sokoban-v0 59 & \verb|→→↑←↑→↓→↓↓↑→↑↑↑↑←←↓↓↓←↓→↑→↑↓↓| \\
+sokoban-v0 60 & \verb|↑←←←↑←←↓→↓→↑→→→↓↓↓←←↑→↑→↑←↓↓↓→↑↑←↑←←↓←↑↑↑| \\
+sokoban-v0 61 & \verb|↓→↓←↑←←←↓←↑↑↑→↓←↓→→→→↓←| \\
+sokoban-v0 62 & \verb|→→↑→↓→↓←←←→↑↑↑←↑→→→↓→→↑→↓↓↓| \\
+sokoban-v0 63 & \verb|←→↓←←←↓↓↓↓| \\
+sokoban-v0 64 & \verb|←↑↑↑↑↑←↑↑→→↓←→↓↓←↓↓→↓→↓←| \\
+sokoban-v0 65 & \verb|↑↑↑→→↑↑←←↓←↓→→↓→↑↓→↑→↑→↑←←←| \\
+sokoban-v0 66 & \verb|↓←←↑↑←↑←←↓→→→↓→↓→↑↑←↑←←→↓| \\
+sokoban-v0 67 & \verb|←↑←→↓←←| \\
+sokoban-v0 68 & \verb|→↓→→↑↓→↑↓←←←↑→→→↓→↑↑↓←↑↓←←↑→→↑| \\
+sokoban-v0 69 & \verb|↑↑↑↑←↑↑→↑→→→↓→←↑←←←↓↓←↓→↑←↑←↑→→| \\
+sokoban-v0 70 & \verb|↓→→↑→↓↓↓↓←↑↑↑←←↓↓↓←↓↓→→↓→↑←←←↑↑→↓←↓→→| \\
+sokoban-v0 71 & \verb|←↓↓←↓↓←←←↑↑→↓↑→→↓↓←←| \\
+sokoban-v0 72 & \verb|↑↑↑→↑↑↑←←↓→↑→↓↓↓←↓↓→↓→↑←←→↑←↑↑→↑↑←←↓→| \\
+sokoban-v0 73 & \verb|↑↑↑↓↓↓←↑↓←←←↑↑↑| \\
+sokoban-v0 74 & \verb|↓←↑↑←↑→→→←←←←←↑→↓←↓→→→→↓→↑↑↑↑| \\
+sokoban-v0 75 & \verb|←→→↓→→→→↑↑←↓→→→↓←←←←←→↑→→↓→↑| \\
+sokoban-v0 76 & \verb|→→→↑→↓↑→→↓←←↓↑→→↓←←←←←↑←↓↓↓↓| \\
+sokoban-v0 77 & \verb|→↓↓←↓↓←←←↓→↑→→↓↓←↑→↑←→→↑↑←↑↑| \\
+sokoban-v0 78 & \verb|→→→↓↓↓↑↑←↑↑↑→↓↓↓↓| \\
+sokoban-v0 79 & \verb|→↑←↑↑↑→↑↑←↓↓→↓←↑←↓↑→↑→↑→↑→↓↓| \\
+sokoban-v0 80 & \verb|←←←←→→→→↑←←↑↑←↓↓↓→↓←←| \\
+sokoban-v0 81 & \verb|↓→↓→→→↓↓←←←↑←↑↑↑↓→↓←↓→| \\
+sokoban-v0 82 & \verb|←↑←←←←←↓→→| \\
+sokoban-v0 83 & \verb|←←↓←←↓←↑↑↑↑→↓↓↓→→↑←↓←↑| \\
+sokoban-v0 84 & \verb|↓→→↑→↑↑←↓→↓↓←←←↑↑→→↑→↓←↓↓←↑←↓→↓→| \\
+sokoban-v0 85 & \verb|←←↑↑↑→↓↓↓→↓←↓←↓↑↑| \\
+sokoban-v0 86 & \verb|↑→→↑↑←↓↑→↑↑←↓↓→↓↓↓→→↑←↓←↑↑↓↓←←↑→↑→↑↑←↓↓→↓←| \\
+sokoban-v0 87 & \verb|↓↓↑↑←↓↓↓→→→→↓←↓←↓↓←←←↑↑↑→→→| \\
+sokoban-v0 88 & \verb|↓←↓→→→↓→→↑→→↓←←←←↑→→↓→↑←←←←←↓→←←↓→→| \\
+sokoban-v0 89 & \verb|↓↓↓↓←↓→→←↑↑↑↑↑→→↓←→→↓↓↓↓↓←↑→↑↑←←↑←↓↓←↓→→| \\
+sokoban-v0 90 & \verb|↓←↓↑→↓↓←↑↑←←←| \\
+sokoban-v0 91 & \verb|→→→↑↑←↑→→↑↑←↓↓↓↓→↓←↓→→| \\
+sokoban-v0 92 & \verb|↓→↓↓←↓→↓←←←←←→→→→↑→↑↑↑←↓↓↓↑↑←↓↓→↓←| \\
+sokoban-v0 93 & \verb|←↑↓←↑↓←←←←←←←| \\
+sokoban-v0 94 & \verb|↑→↓→→↑←↓↓→↓→↑↑| \\
+sokoban-v0 95 & \verb|←↑→→→↑←↑↑↑↑←↑→↓↓↓↓↓←↓←←↓←←↑→→→→↓→↑↑↑↑↑↑| \\
+sokoban-v0 96 & \verb|↓→↑↑↓↓←↓↓↓←←↑→↓→↑↑↓→↑| \\
+sokoban-v0 97 & \verb|↑←↓→↑→→↓←←←←→↑←←←→↓→↓←←↑←↓↓| \\
+sokoban-v0 98 & \verb|→↑←↓←↑↑↓←↑↓↓↓↓←←↓→→→→↓→↑↑| \\
+sokoban-v0 99 & \verb|↓↓↓↓←↑↑↑↑↑↑→↓↓↓↓↓↑→↓←←↓↓→→| \\
+sokoban-v0 100 & \verb|→→→↑→→→↓→↑←↑↑→↑↑←↓↓↓↓→↑↑↓↓→↓←↓←←↑←↑→↑→→↓→↑↑| \\
+
+\bottomrule
+\end{longtable}
+\end{center}
+
+\clearpage
+\subsection{Sokoban-v1}
+\subsubsection{Unsolved}
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{images/appendix/test_dataset/sokoban-v1_unsolved.pdf}
+    \caption{loss of the "$10\times{10}$ grid with two boxes" model with a batch size of 1}
+\end{figure}
+
+\clearpage
+\subsubsection{Solutions}
+
+\begin{center}
+\begin{longtable}{ll}
+\caption{A simple longtable example}\\
+\toprule
+game idx & DeepCubeA\\
+\midrule
+\endfirsthead
+sokoban-v1 1 & \verb|↓↓↓←←→↑←→→↑←| \\
+sokoban-v1 2 & \verb|←↑→↓↓←↓↓→↓| \\
+sokoban-v1 3 & \verb|↑←→↑↑↑↓←↓↓↑↑↑↑↑| \\
+sokoban-v1 4 & \verb|↑←↓→↓↓↓←↓←←↓→→←←←↓→→→↑→↑↑↑↑↑| \\
+sokoban-v1 5 & \verb|↓→↓↑→→↓←↓←←←←↑←↑→→→→↓→↓←↑←←←| \\
+sokoban-v1 6 & \verb|→↓↓→→↑↑↓↓←←↑→↓←←↓↓→↑↑| \\
+sokoban-v1 7 & \verb|←←←↓←←←→↑↑→↓→↓←↑←←| \\
+sokoban-v1 8 & \verb|→→↓←→→→→↑→↓←←←↓←←↑←↑→→→→| \\
+sokoban-v1 9 & \verb|→↓→→↑↓←←↑→↑→↓↑←↑→→↓↓| \\
+sokoban-v1 10 & \verb|↑→→↓↓←↑↑↑↓↓↓↓←↑←↑→↓→↑↑←↑| \\
+sokoban-v1 11 & \verb|↑↑↑↑↑←↑↑→↓←↓→→→↑→↓←↓↑←←↓↓↓↓↓←←↑←→→↓→↑↑↑↑↑←↑→→→| \\
+sokoban-v1 12 & \verb|↑→↑←↑←↓↑↑↑↑→↓→↑→→→↑→→↓←←→↓←←→↑←←←←↓←↑| \\
+sokoban-v1 13 & \verb|↑↑↑↓↓→↑→↑↑↑←↑↑→↓↓| \\
+sokoban-v1 14 & \verb|↓→→←↑→→←↓↓↓←↑↑| \\
+sokoban-v1 15 & \verb|↓↑↑↑↑→↑←←↓←↓←↓→| \\
+sokoban-v1 16 & \verb|←↑→↑↑←↑↓→↓↓↓↓←↑↑↑| \\
+sokoban-v1 17 & \verb|→↑↑←↑←→→→→→↓←↓↓←↑↑←←→↑→→| \\
+sokoban-v1 18 & \verb|→→↓→→↑→↑→↓↓←↓↑←←←↑←↓↓↑↑→→→→↓→↑↓↓| \\
+sokoban-v1 19 & \verb|←↑←↓↓→↓↓←←→→↑↑↑↑↑↑←↓↑←←↓→→↓→↑↓↓↓←↓↓↑↑↑←↑↑↑| \\
+sokoban-v1 20 & \verb|←↑←←↓↓↓↓→↑←↑↑↑→→↑↓←←←↑↑←←↓↓↓↓↓→↑←↑↑→→↓←↑←↓→→→↑→→↓←←←| \\
+sokoban-v1 21 & \verb|↓→↓←↑←←↓↓→↓→→→→→↓↓←↑→↑←←←←→↑←↑↑→↓↓| \\
+sokoban-v1 22 & \verb|↓↓→↓←←↓→↓←←←↑↑←↑↑→↓↓↑↑→→↓→→↑↑←↓→↓←←←←→↓↓←←| \\
+sokoban-v1 23 & \verb|→↓→↑→→↓→←←←←↓↑↑←↓↓←↓↓| \\
+sokoban-v1 24 & \verb|↑←←↓→→↑←↑←↑→→→←↓→↓←| \\
+sokoban-v1 25 & \verb|↓←↓←↑→↑↑↑↑↑←←←↓↓↓→→←↓→→↓→↑↑↑↓↓←↑↑↑↓↓↓↓←←↓←↑↑| \\
+sokoban-v1 26 & \verb|→↑→→→↓↓↓←↑←↑→←←↑←| \\
+sokoban-v1 27 & \verb|↓→↑→↓←↓→→→→↑←←←←↓↓→↓→↑←↑→→↑→→↓| \\
+sokoban-v1 28 & \verb|→←↓↓→↑↑→↑↑←←↓↓→→→→↓→→↑←| \\
+sokoban-v1 29 & \verb|←←←→→↓↓←←←↓←↑↑↑←←↓→←↓→→→←←↑↑↑→→→→→| \\
+sokoban-v1 30 & \verb|→↓←↓↓→↑←↑→→↑←↑→↓↓←↓↓→↓↓←↑↑↑↑↑←↑→←↑→| \\
+sokoban-v1 31 & \verb|←→↑↑↑←←←←↓←→↑→→→↓↓↓←→→↓←| \\
+sokoban-v1 32 & \verb|←↓↓↓↓↑↑→→↑←↑←↓↓→↓↓←←↓↓→→↑←→↑↑↑→↑←↓←↓| \\
+sokoban-v1 33 & \verb|↑↓→→↑←←→↑| \\
+sokoban-v1 34 & \verb|→→↓↓→→↓↓←↑→↑↑←↓↓↓↓| \\
+sokoban-v1 35 & \verb|↓↓↓↓←↓←←↓↓→→↑→↑←←→↓↓←←↑↑→→↑↑→↓↓←↓←→→| \\
+sokoban-v1 36 & \verb|↓→↓←↑←←↓↓↓↓→→←↓↓→→↑↑←←↓→←↓←↑↑↑↑| \\
+sokoban-v1 37 & \verb|→←↓→→→↑→↑→→↓←←↑←←↓←↓→←←↑↑→→↑→→→| \\
+sokoban-v1 38 & \verb|←←←←←→↑←→→↓→→→↑↑←↓←←→→→↓←←←←| \\
+sokoban-v1 39 & \verb|→→↑→↓→→→↑←←↓←↓↓←↑→↑←←←→→↓↓↓↓→↓↓←↑↑↑↑↑→↑←←↑←←↓→→→→→←↓↓↓↓↓←↓→| \\
+sokoban-v1 40 & \verb|↓↓←→↓↓↓↓↑↑↑↑↑↑←↓↓←←←↓→↑→↓↓←↓↓| \\
+sokoban-v1 41 & \verb|↓↓↓↓→→↓→↓←↑←↑←←↓→→→↓→→↑→→↓←←| \\
+sokoban-v1 42 & \verb|↓←↓→→↑→→↓←→↑↑↑←↓↑↑↑→↓↓↓↓↓↓| \\
+sokoban-v1 43 & \verb|↑↑↑←↑↓→↑↑←←↑←↑→→→↓←| \\
+sokoban-v1 44 & \verb|↓←←←↓←↓↓→→←←↑↑→↑↑←↓→→→→↑↑←↓←↓→↑←←| \\
+sokoban-v1 45 & \verb|→↓→→↑↑←↓←↑↑↑↑↑→→→↓←←↑←↓↓↓↓↑→→↑↑| \\
+sokoban-v1 46 & \verb|←↓↓↓↓↓↑↑→↓↑↑↑→↑←→→↓↓↓→↓←←←↓←↓→↓←| \\
+sokoban-v1 47 & \verb|←↑↑→↑←←←→→↓↓↓→↓←←←←→→↑←←→↑→→| \\
+sokoban-v1 48 & \verb|↓↓↓←←↑→→↓→↑←↑→↓→↑→→↓←←↑←↓↓←↓←↑←↓↓→→→→→→| \\
+sokoban-v1 49 & \verb|←←←←←↑↓→→→↑↑→↓→↓←←←←↑→→↑→↓→↓←↓←←←| \\
+sokoban-v1 50 & \verb|→↓→↑→↑↑←↓→↑↑↑←↓↓↑↑←←←←↓←↑→→→↓→↑→↓| \\
+sokoban-v1 51 & \verb|↑↑←←→→↑↑←←↑←↑→←←←←↓→→→→| \\
+sokoban-v1 52 & \verb|↓←←←←↑←↓↓↓↑↑→→→→↑→→↓↓↓←↑→↑↑→↓↓↑←←←←←←| \\
+sokoban-v1 53 & \verb|→↓→→→→→→↑←←↓←←↑↑←→↓↓←←←↓↓→↑←↑→→→→→→↑→↓↓| \\
+sokoban-v1 54 & \verb|↑↓↓→→↑↑←↑←→↓←←↑←↑↑→→↓↓←↑↓↓↓→↓→↑↑←↓←↑↑| \\
+sokoban-v1 55 & \verb|↑←↑→↑↑←↓←↓→←←↓→| \\
+sokoban-v1 56 & \verb|→↓↓↓↓←↓→↓↑→→↑↑←↑↑→↑←↓←↓↓↓| \\
+sokoban-v1 57 & \verb|↑→→↓↓←↑↑↓↓↓←↓↓→↑↑↑↑←↑→→←←↑→| \\
+sokoban-v1 58 & \verb|↓↓↑↑←↓↓↓↓↓↑→↓↓↑↑→↑↑←↓↓↓| \\
+sokoban-v1 59 & \verb|→↓↓→→↓↓↓→→↑↑↓←↑↓↓←↑↑→↑←↑→→←↓↓→↑↑| \\
+sokoban-v1 60 & \verb|↑↑↓↓↓←←↑↑→↑→↓↓↑←↓| \\
+sokoban-v1 61 & \verb|↑→←↓→→↑↓→→↓→→↑↑↓←↑↑→←↓↓↓←↑↑←↑→↑→→| \\
+sokoban-v1 62 & \verb|←←↑←←←→↓↓←↑↑→→→→↓←←←↓←↑←↑| \\
+sokoban-v1 63 & \verb|↑↑←↑↑→→→←←←↑→→→→↓↓→→↓→↓↓←↑←←←↓↓←←↑↑↑←↑→| \\
+sokoban-v1 64 & \verb|←←←←↓←↑→→→↓←←↓←↑↓↓↓↓→↑↑↑↑| \\
+sokoban-v1 65 & \verb|↓←→↓→→↓↑←←↓→↓→↑↑→↑←| \\
+sokoban-v1 66 & \verb|←←↑←←↓←↑↑→↓→→↓→→↑←←←←↓→| \\
+sokoban-v1 67 & \verb|↑←→↓←←←↑←←↓←←↑↑→↓↓↑→→→↓←←←↑←↓↓↓↓| \\
+sokoban-v1 68 & \verb|↑←←←↓←↑→→→→↑↑↑↓←↑↑↓↓↓→↓←←←| \\
+sokoban-v1 69 & \verb|←←←↑↑↑←↑→→↑→↑↑←←←↓↓↓| \\
+sokoban-v1 70 & \verb|→↑→↓↑→→↓←←↓↓↑←↑←↑→→←↓←↓↓↓→→↓←←↓↓→↑↓→↑↑| \\
+sokoban-v1 71 & \verb|←←→↑↑←→↓↓←↑↑| \\
+sokoban-v1 72 & \verb|→↓←↑←←←←←↓↓→↓←→→↑→→→| \\
+sokoban-v1 73 & \verb|←↑↑→↑↑←↓→↓←↑↑↑↑←←←↓←←↑→→→→↓→→↑↑←↓↓↑←←←↓→| \\
+sokoban-v1 74 & \verb|↑↑↑→↑→→→↓←↑←←↓↓→↑←↑→| \\
+sokoban-v1 75 & \verb|↑←↑↓↓←←←←↑←←↑↑→↓↓↓←↓→→→→| \\
+sokoban-v1 76 & \verb|←↓←←↓↓↓→↓←↓→↓→→→↑→→→→↑↑↑←↓↓↑↑→↑↑←↓↓↓→↓↓←←←←| \\
+sokoban-v1 77 & \verb|↑↑↑↑↓←←←↓→→→↓→↑←←↓↓←↑↑←↑→←↑→→↑→| \\
+sokoban-v1 78 & \verb|↓←↑←↓↓↓→↑←↑→→| \\
+sokoban-v1 79 & \verb|↑↑↓↓→↑↑↑↓↓↓→↑↑↑↑↑↑↓→↓↓→↓←←↓←↑←↑→↑↑←←↓→→↓→↑↓→→↓→↑↑↑↑| \\
+sokoban-v1 80 & \verb|↓←↓→→→↓→↑↑→↓→↓↓←↑↓←←↓←↓↓→→↑←←| \\
+sokoban-v1 81 & \verb|↓↓↓→←↑↑↑→→↓←↓↓→→←←↓←←↓→↑↑↑↑↑←↓↓↓←↓→→→→→↑↓→→| \\
+sokoban-v1 82 & \verb|↓↓↓←↓←←↑→↓→↑→↑↑→↑→↓↓↓←→↓←←↑↑↑←↑→| \\
+sokoban-v1 83 & \verb|↓←←↓↓→↑↓→→↑←←→↑←↓↓←←↑↑←←↓→←↓→→↑↓→→| \\
+sokoban-v1 84 & \verb|←←↑←←↓↓↓↓↓↑↑↑↑↑→→↓→→↑←←←→→→↓↓↓↓↓↓| \\
+sokoban-v1 85 & \verb|↑↑↑↑→→↓←↑←←↓←↓↓↓→→↑↑↑↓↓←↓←←↑↑↑→↑→↓→→↑→→↓←←←←↑→| \\
+sokoban-v1 86 & \verb|←↑↑↑↓←↑↑→→←←←↑→←↑→→→←↓←↓→| \\
+sokoban-v1 87 & \verb|←←←↓←←←←↑→↓→→→↑→→↓←↓→↑←←←←←| \\
+sokoban-v1 88 & \verb|→→→→←↓→←←←↓←↓↓↓→↑↑↑→↑↑←↑→→→↓→→↑→↓↓| \\
+sokoban-v1 89 & \verb|←←←←→→→↓←→↓↓↓↓→↓↓←↑↑↑↑↓↓←↑←↑←↑↑←| \\
+sokoban-v1 90 & \verb|↓↑→↓→↓↓←←←↓←←↑↓→→↑←←←↓←↑←↑↑↓→→↑↑→→→→→→→→→→→→↑↑←↓→↓↓↑←←←←←←↓←↑| \\
+sokoban-v1 91 & \verb|↑↑←↑→←←↑↑→↓→→↓↓←↓→↑↑↑↑↑↑←←↓→↓↑←↓↓←↓→↑→↑→↓↓↓| \\
+sokoban-v1 92 & \verb|←←↓←←←↑↑→→↓←↑←↓↓→↑→→↓←←| \\
+sokoban-v1 93 & \verb|↓↓↓←↑←↑↓→→↑↑←↓| \\
+sokoban-v1 94 & \verb|←←↑←↓←↓←↓↓↓↑↑↑→→↑↑←↑←↓↓↓| \\
+sokoban-v1 95 & \verb|↓↓↓↑↑←↓→→↑→↑←←←←| \\
+sokoban-v1 96 & \verb|↑→↓→→↑←←↑↑→↓←←←↑↑←↑→↓↓↓↓→↓→↑↓→→↑←←←↓←↑↑↑↑| \\
+sokoban-v1 97 & \verb|←←↑←←←↑↑→↓↑→↓←↓→↓↓↓←↑←↑→↑→↓↓→↓→↓←↓→↓←| \\
+sokoban-v1 98 & \verb|↑←←←↓→↓→↑→↑←←↓←←↓→←↓↓↓| \\
+sokoban-v1 99 & \verb|→→↑→↓→↓→→←←↑→←←←↓→→→↓→→↑↑↑↑↑←↑←←←↑←←←↓→→→→→↑→↓↑→↓↓↓| \\
+sokoban-v1 100 & \verb|↑←↑→↑←←↑↑→→→→→→→→↓→↓←←↓←↑↑←↑←←↓→→↓←←| \\
+
+\bottomrule
+\end{longtable}
+\end{center}
+
+\clearpage
+\subsection{Boxoban (medium)}
+\subsubsection{Unsolved}
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{images/appendix/test_dataset/boxban-medium_unsolved.pdf}
+    \caption{loss of the "$10\times{10}$ grid with two boxes" model with a batch size of 1}
+\end{figure}
+
+\clearpage
+\subsubsection{Solutions}
+
+\begin{center}
+\begin{longtable}{ll}
+\caption{A simple longtable example}\\
+\toprule
+game idx & DeepCubeA\\
+\midrule
+\endfirsthead
+boxban-medium 1 & \verb|←←↑↑←↓←↓←↑↑→↑↑←↑↑→↓↓↓↓←↑↓↓→→→→→→↓→↑↑↑↓↓←←←←↑←←↓↓→→→→→→→| \\
+boxban-medium 2 & \verb|→↓↓←↓↓→↑↑↑↑←↓↓↓↑↑↑→↑↑←↑←←↓→→←←↓↓↓↓↓↓→→| \\
+boxban-medium 3 & \verb|↑←↑→→↑→↑→→↓↓↓←↓↓↓↓→↑←↑↑→↑↑↑↑←←↓→↑→↓↓↑←←←↑←←↓→→→→| \\
+boxban-medium 4 & \verb|↑↑→↑↑←↑↑→→→→→↓←←↑←←←↓↓→↑←↑→→→↓←↑←←↓↓→↑←↑→↓→→→→↑→→↓←←←←↑→↓←←←↓←↑| \\
+boxban-medium 5 & \verb|↑↑↑→↓→→↑↑↑→↑→↑→→↓↓↓↓↓↓↓←←↑→↓→↑↑↑←↑↑→↑↑←←←←←↓→↓↓↓↓←←←↓↓→→→→→→→| \\
+boxban-medium 6 & \verb|←↑↑↑↑→↓↑←↑↑→↓←↓↓↓↓↓→→↑←↓←↑↑↑→↓←↓↓→→↑←↓←↑→↑↑←↑↑→↓↓↓↓←↓→↑↑↑←↓↓| \\
+boxban-medium 7 & \verb|↑←↑↑→↑↑←↑←→→↓↓↓←↓↓→↑←↑↑→↑↑↑←↓↓↓↓↓→↑↑| \\
+boxban-medium 8 & \verb|→↓→→→→→↑↑←↑←←←←↓↑→→↓←↑→→→→↓→→↑↑↑↑↓↓↓↓←→↓↓←←←←↑↑↓↓←←↑↑→↑→→→→→↓↓↓←←←←↑↑←|\\&\verb|↑→→→→↓→→↑←| \\
+boxban-medium 9 & \verb|→↓→↓↓←→↓←←←←→→→→↑↑↑←↓←↓↑→→↓↓←←↑↑→↑↑↑→↓↓←↓←↓↓→↑↑| \\
+boxban-medium 10 & \verb|→↑←↑←→↓↓←↑←↑↑↑↑←↑→→→↓→→↑←←←←↑←↓→↓↓↓↓↓→→↑←↓←↑↑↓↓→→→→↑←←←↑←↓| \\
+boxban-medium 11 & \verb|↓→→↑↑↓↓←←←↑↑↑→↓↓←↓→↑↑↑→→↓→→↑←↓←↓←←↑←↓↑↑↑↑↑↑→→↓↓←| \\
+boxban-medium 12 & \verb|↑→↑↑→↑←↓←→↓↓←↑←←←↓←←↑→→→→↑→→←←↓→↓→↑| \\
+boxban-medium 13 & \verb|↑↑↑→→↓→↓→↓↓↑↑→↑↑←↓←←↑←←↓→→↑→↓→→↑←↓↓| \\
+boxban-medium 14 & \verb|↓←←↑←←↑←←→→↓↓←←←↑↑→→↓→↓←←→→↑→→↓←→→→↑←←←←↑←↓| \\
+boxban-medium 15 & \verb|→→→→→←↑↑→↑↑↑←↑↑→↓←↓↓→↓↓←↑↑→→→↓↓←→↑↑←←←↑↑→↓←↓↓→→↑←↓←↑↑| \\
+boxban-medium 16 & \verb|↑→↓→→↑↑↑←↑→→→←↓←↓↓↓→→↑←↓←↑↑↑←↑→↓↓↓↓←←↑→↑→↓↑↑→↑←↑→→←←↓←↓↓↓| \\
+boxban-medium 17 & \verb|←←←↓↓↓↓↓↓→→→↑↑→↑↓←↓↓→→→→→←←↑←↓←←↑←↑↑↑↑↑→→↓→↓↓↓↓→↓←↑↑↑→↓↓| \\
+boxban-medium 18 & \verb|↓↓←←←←↑←←↑↑↑→→↑→→→→→↓←↓↓↓↓←←←←↑↑←↓→↓→↓→→↓→↑↑↑↑↑↑→↑←←←←←↓←←↓↓↑↑↑→| \\
+boxban-medium 19 & \verb|→↑↓←↓↓→↑↓←↓↓→↑←↑↑↑↑↑→→↑↑←←↓↓→→↑←↓←↓↓↓↑→↑↑↑| \\
+boxban-medium 20 & \verb|↓→→↑→←↓←←↑→→↓→→→↑↑←↓→↓←←←↑→↓→→↑↑←↑←↓↓↑→→↓↓←↑←←←←↓→| \\
+boxban-medium 21 & \verb|↑→→→→↓→←←↑←←←↓↓↓→↑←↑→→→↓←↑←←↓↓→↑| \\
+boxban-medium 22 & \verb|←↓←↓→→↓↓↓←↑↓→↓↓←↑→↑↑↑↑←↑↑→↓↓↓↓←↑↑←↑→↑→↓↓↓←↓→↓↓←↓→→←←↑↑↑↑↑←↑→↑→↓↓→| \\
+boxban-medium 23 & \verb|↑←↓↓↓↑↑↑←←↓↓↓→↓→→→↓→→↑←↓←↑←←↑↑→↑↑←↓↓↓↑↑←↓←↓→↓→→| \\
+boxban-medium 24 & \verb|↓↓↓→↑←↑→↓↓↓↓←←←←←←↑↑↑↑↑↑→→→→↑→↓→↓↓↓↓↓→↓←←←←←→→→↑↑↑→↑↑↑↑↑←↑→↑←←←←←↑←↓↓↓|\\&\verb|↓| \\
+boxban-medium 25 & \verb|↑↑↑→→→↓↑←↑↑→↓↓←←←←↑→→↓→→↑↑←↓→↓←↓↓→↑↓↓→↓↓←↑→↑←↓←↑↑↑↑←→↑←←↓↓↓↓| \\
+boxban-medium 26 & \verb|→→↑←↓←←←↑↑↑↑↑↑↑←←↓→↓→↓↓←↑↑↑←↑→→↓↓↓↓←↓→↓↓←↑↑↑↑↑↑| \\
+boxban-medium 27 & \verb|←↓↑←←←←←↓←↓↓→↑←↑↑→→↓←↑←↑↑→↓| \\
+boxban-medium 28 & \verb|↑←←↓↓↓→↓↓↑↑←↑↑↑→→↓←↓| \\
+boxban-medium 29 & \verb|↓↓→↑→→↓→↑←←←←↑↑→↓←↓→→→↑↑↑→→↓↓↓←←←←↓←↑↑→↓→→↑↑→↓→↓←←←←→→→→↑↑↑↑→→↓←| \\
+boxban-medium 30 & \verb|↓←←←←↑↑↑↑↓↓→↓→←↓↓↓→→→→→→→↑→→↓←←←←→→→→↑↑↑←↓↓→↓←←←→→↑↑↑→→↑↑↑←↑←←←←←←↓→→→|\\&\verb|→→→| \\
+boxban-medium 31 & \verb|↓→→→↑→↓→↓←↑←←←←↓↓→↑←↑→→→→←←←←↓↓↓↓→↑↑↑←↑→→→←←←↓↓↓↓↓↓→↑↑↑↑↑| \\
+boxban-medium 32 & \verb|←↓↓←↓↓↓↓↓→→↑→→↓→→→↑↑↑↓←↓→↓←←←↑→←←←↓←←↑→→→→↓←←→→↓→→→↑↑←↓→↓←←←↑→↓→→↑↑←↓←|\\&\verb|←←←↓→→| \\
+boxban-medium 33 & \verb|↓→↑↓→→↑←←←←→→→↑←←←↓←←↑←↑↑↑↑↑→→↓←↑←↓↓↓↑↑→→↑→→↓←←←↑←↓| \\
+boxban-medium 34 & \verb|←←↓↓→→↓↓→↓↓←←→→↑↑↑←↑↑→↓→↓→↓←↑←←←↓→↓↓↓↑↑↑→→| \\
+boxban-medium 35 & \verb|↓↓→→→→↑↑←↑←←↓↓←↓→→→↑→→↓→↑↑←↑←←↓↓↓→↑↑| \\
+boxban-medium 36 & \verb|↑→↑↑←↑↑↑↑←←↓→↓→↓↓→↓↓←↑↑↑←←↓↓→←↑↑→→↓←| \\
+boxban-medium 37 & \verb|→↑↑←↑→←↑↑→↓←↓↓↓→↓↓←↑↑↑↑→↓→→→↑←↓←↑| \\
+boxban-medium 38 & \verb|↓↓↓↓↓↑→↓→↓→→←←↑←←↓↓→←↑↑↑↑↑↑→→↓←↑←↓↓↓↓↓→↓←←↓→↑→→→↓→↑↓→↑| \\
+boxban-medium 39 & \verb|→↓↓→→→↑→→↓←↑↑←↓←↓←←↑→→→→↓→↑↑↑↓↓↓←←←↑←←↓←←↑→→→→↓←→←↑→→→↓→↑| \\
+boxban-medium 40 & \verb|←↑←←←←→↑→→→↓→↑↑↑↑←↑↓←↓←↓↓↓←←↓←↑↑↓↓↓↓→→→→→↓→↑↑↑→↑↑←| \\
+boxban-medium 41 & \verb|↑←↓←←←←←↓←↑↑↓→→→↓←→↑→→↓←←↑←←←↓↓→↑←↑→→→↓←↑←←↓↓→↑←↑→→| \\
+boxban-medium 42 & \verb|↑→↓→↑→→→→→↓↓←↑→↑←←←↓→←←←↑←←↓→→→→↑←→→→→↓↓←↑→↑←←←↓→→| \\
+boxban-medium 43 & \verb|←←↓↑→→↓←↓←→↑↑←↓→↓↓←←←↑↑→→↓←→↑↑→→↓←↑↑←↓→↓↓←→→→→→↑↑↑↑| \\
+boxban-medium 44 & \verb|↑←←←↓←←←→→→↑↑↑←←↓←←↓↓→→→→↑→→→↑←←↓←↓←↓←↑←←↑↑→→↑→→↓| \\
+boxban-medium 45 & \verb|→↓↓↓←↓↓←←↑←←←↑↑←↑→→→→←↓→↑→→←↓↓↓→→↑↑↑↓←↑←↓↓↑→→↓↓←←←↓↓→↑←↑→↑↑←↑←←←↓↓↓→→| \\
+boxban-medium 46 & \verb|←↑↑→↑↓←↓↓←←←←↑←↑↑→→→↑→↓→↓→→↑←←←←←←| \\
+boxban-medium 47 & \verb|←←↓↓↓↓→←↑↑→↓→↓↓→↓←↓←←↑↑↑→↑↑←↑↑→↓↓↓→↓←→↓→↓↓←↑↑↓↓←←↑→→↓→↑| \\
+boxban-medium 48 & \verb|↓←←↑←←←←→→→→↓→→↑←←←←←↓←←↑↑→↓↑↑↑←↑→↓↓↓←↑↑↑→↑→→→→←←←↑↑←↓↓↓↓| \\
+boxban-medium 49 & \verb|↑↑↑↑←↑↑←←↓↓→↓→↑→↓←←↑←↑↑→→→↓↑←←←↓↓→→↑↓←←↑↑→↓| \\
+boxban-medium 50 & \verb|→↓→→→↑↑←↓↑→↑↑←←←↓↓↓→←↑↑↑→→↑↑→↑→→↓←←←←→→→↓←←→↓↓↓↓↓←↑| \\
+boxban-medium 51 & \verb|↓→↑↑↓↓→→→→↑→↑→↑↑←↓↓←←↑→↓→→↑↑←↓←↓↓↓→→↑←→↑↑←↓↓←→↓↓↓←←←←←←←| \\
+boxban-medium 52 & \verb|↑↑↑←←↓↓→↑→↑→→↓←←↓↓↓↑↑←←↑↑→→↓↓←↑→→→↑→→↓←←←←←→↑→→| \\
+boxban-medium 53 & \verb|↑→→↓↑←←↑↑→↓↑→↓↑→→↓←←↑←←↓↓↓↓→→→→←←↑↑↑←↑→←←↓↓↓↑↑→→↓↑←| \\
+boxban-medium 54 & \verb|←↓→↓→→↑↑↑↑↑←↓→↓↓↓↓←←←←←←→↑→→↑→↓→←↓→↑→| \\
+boxban-medium 55 & \verb|←←←←↓↓↓→→←←↓↓→↑→↑←↓→→→→→←←↑←↓←←←↑↑↑↑→→→↓↓↓←←↓←↑↑↓↓→→→→| \\
+boxban-medium 56 & \verb|↑→↑→↑←↓↓←←↑→→←←↑←←↓→→↓→→↑←→↑←←←→→↑→↑→→↓←| \\
+boxban-medium 57 & \verb|→→↑→↓↓←↓←↑↑↑↑↑←↑←←←↓↓→↑→→↑→→←↓↓↑←←←←↑→→→| \\
+boxban-medium 58 & \verb|←←←↓→→←←↓↓→↓←↓→→←↑↑↑↑←↑→→→→↑↓←←←↑↑→→→| \\
+boxban-medium 59 & \verb|↑↑↑→↑↑↓↓←←↑←↑↑→↓↑→→↓←←↓↑↑←↓| \\
+boxban-medium 60 & \verb|↑↑←↑←←←↓↓←←→→↑↑←←←↓↓↓↓↓↑↑↑→→→↑↑→→→↓→↓↓←↑↑→↑←←←←←↓←→→↓↓←←→↑←| \\
+boxban-medium 61 & \verb|↓→→↓↓↓→↑←↑↑←←↓→↑←←←↓→←↓↓↓↓↓→→→| \\
+boxban-medium 62 & \verb|↓↓↑←←↓→↑→→↓↓↓↓←←↑↑↑↓↓→| \\
+boxban-medium 63 & \verb|↓↓↓←←↑↑↓↓→→↑↑→→↑→→↓←←←↑←↓↓←| \\
+boxban-medium 64 & \verb|→↑↑←↑↑↑→←↓↓↓→↓↓→→→←←←←↑↑| \\
+boxban-medium 65 & \verb|←↓←↓↓→→→→→→←↑↓←←←←←↑↑→↓←↓→→→←←↑↑→↑→→↓→←←←↑←↓→↓| \\
+boxban-medium 66 & \verb|←←←↓↓←←←↑→↓→→↑↑→→→↓↓←↑←→↓←←↑| \\
+boxban-medium 67 & \verb|←↓↓↓→↓←↑↑←←↑→←↑↑→↑↑←↓→↓↓↓↑↓→↓↓←| \\
+boxban-medium 68 & \verb|↓→→↑→←↓←←↑→↓→→↑→→↓←←←←↑→→↓→→→↓↓↓←↓| \\
+boxban-medium 69 & \verb|↓↓→→→→↓→→↑←←←←↓→→↑←←↑↑←←↓↓→←↑↑→→↓←→↓| \\
+boxban-medium 70 & \verb|↓←←↓↓→←↑↑→→↓←↑←←↓←←←←↓→↑→→↓↓↓→→→→↑↑←↑←←←←←↓→↑→→→↓→→↓↓←←←←↑↑←↑→↓↓↓←↑| \\
+boxban-medium 71 & \verb|↓→→↑←↓←←↑←←↓→→→→↓→↑←↑←↓←←←↑←←↓→→→| \\
+boxban-medium 72 & \verb|→↑←←←↓→→↑→→→↓↓←↑→↑←←←↓←←↑→↓→→↑→→↓↓→→↑←→↑←←←| \\
+boxban-medium 73 & \verb|←↓↓→↓↓←↑↓→↓↓←↑↑→↑↑←↑↑←←↓→↑→→↓↓↓↓←↑↓→↓| \\
+boxban-medium 74 & \verb|→→↑↑↑←↑↑→→↑↑←↓→↓↓←↓↓→↑↑↑↑←↓↓→↓↓←↓↓→↑↑↑↑↑↓←↓| \\
+boxban-medium 75 & \verb|↑↓→↑↑↑↑←↑↑→↑↑←←↓↓→↓↓→↑↑←←↑↑→↓↓↓| \\
+boxban-medium 76 & \verb|↑←↑←←↓←↑←↓←↓↓↓↓↓↓→→↑←↓→→→↑←←↓←←↑↑→↓←↓→↑↑←↑↑↑↑→↑→→→→↓→→↑←←| \\
+boxban-medium 77 & \verb|←↓↓←↓↓→→↑↑←↑↑→↑↑←↓↓←↓↓↓↑→→↑↑←↓| \\
+boxban-medium 78 & \verb|→↓→↓←←←←→→→↑↑←↓→↓↓↓↓←←↑→↓→↑↑↑←↑↑→↓↓↓↑↑←←←↓→→↑→↓| \\
+boxban-medium 79 & \verb|←←←←←↓←←↑→↓→→↑→→↓←←←←↑→→←←↓↓↓→↑↑→→→↑→→↓←←←←↑←↓→→→↑←| \\
+boxban-medium 80 & \verb|↓←↑→↑↑↑←←↓→↑→↓←↑↑↑→↓←↓↓→↓↓←↑↑| \\
+boxban-medium 81 & \verb|↑→→↑↑←←↓↑→→↓↓←↑←↑↑→↑→↓↓↑←←↓↓→↓→↓↓←↑←↑↑→↑→↓| \\
+boxban-medium 82 & \verb|↑↑↑←↑←←↓↓↓↓→↑←↑↑→→↑→→→↑↑→→↑←→↓↓↓←←←←↑←←←↓↓↓↓→↑↑←↑→| \\
+boxban-medium 83 & \verb|←←←↑→↑→→←←↓↓→→→↑→↑↑←↑←↓→→↓↓←↑↓↓←←←↑↑→→↑↑→↑↑←↓↓↓| \\
+boxban-medium 84 & \verb|↑↑↑←↑↑→→→→↓←↑←←←↓↓→↑←↑←←↓→→↑→→→↓→→↑←←←←←| \\
+boxban-medium 85 & \verb|←↓←←←↑←↓↓↓↓↑↑↑→→→→↑←→→↓↓↓←↓↓→↑↑↑→↑←←←↓←←↑←↓↓↓↑↑→→→→→↓↓↓↓↓↓←←↑→↓→↑↑↑↑↑→|\\&\verb|↑←←←| \\
+boxban-medium 86 & \verb|↓↓↓→→→→→→↓↓←↓←↑→←↑←↑←←←←↓→←↑←←←↓↓→↑←↑→→←↓↓↓↓←↑↑| \\
+boxban-medium 87 & \verb|↓←←←↓↓↓↓↓↓→↑←↑→→→↑↑↑→↑←←↑←←↓↓↓→↑→→←←↓→→→→→→←←←↑↑↓←←←↑↑↑→→↓→| \\
+boxban-medium 88 & \verb|←←←↓↓→↑↓→→→↓↓↓←←←↑↑↓←↑↑↑↑→→→←←↑←←→↓↓↓↓→↑↑↓↓←→→→→↑↑→→↓| \\
+boxban-medium 89 & \verb|→↓↓←←↑→↓→↓↓←↑→↓↓↓←↑→↑↑↑←↑↑→↓↓↓↓| \\
+boxban-medium 90 & \verb|↑↑←←↓←←→→↑→→↓←←↓→↓→↑←↑←←↑←←←←←↓↓↓↓←↓↓→↑↑↑↑←↑→↓↓↓↓↓←↓↓→↑↑↑↑↑| \\
+boxban-medium 91 & \verb|←→↑↑←↓←←↓↓→↑←↑→←↑↑→↓→→↑←→↓↓↓←↑| \\
+boxban-medium 92 & \verb|→→→↑↑→→↓←→↓↓←↑↑↓←↑↓←↓↓↓↓←←←↑→→→→→↓→↑↑| \\
+boxban-medium 93 & \verb|→↑→→↓↓↓↓←←←←↑↑←↑→↓↓↓←↑↑→↑↑→→↓←↑←↓↓←↓↓→→→→→↑↑↑↑←←↓←←↑→↓→→↑→↓↓| \\
+boxban-medium 94 & \verb|↑←↓↓↑↑→↑↑←↓↑←←↓→→↓→↓↓←↑↓→↓↓↓←←↑→↑↓↓→↑↑↑↑←↑↑| \\
+boxban-medium 95 & \verb|←←→→→↓↓↓↓↓↓→↓→→↑←←←←←→↓→| \\
+boxban-medium 96 & \verb|↑→↓↓→↓↓←←←←←↓←←↑↑→↓→→→→→→↓↓↓←↑↑→↑←←←↓→↑←←←←←←↑←↓↓| \\
+boxban-medium 97 & \verb|→→↓→↓→→↑↑↑↑←↑↓↓→↓↓↓←←↑→↓→↑↑↑←↓→↓↓←←↑→↓→↑↑| \\
+boxban-medium 98 & \verb|↑←↓←←↑←↑←←↓↓↓↓↓↓→↑←↑↑↑↑↑→→↓←↑←↓↓↓↓↓↑↑→↑↑←↑→↓→→↓→→↑←| \\
+boxban-medium 99 & \verb|↑→↓→↓→→↓↓←←↑→↑→↓←←↓←←↑→→→↓→→←↑←↑↑←←↓↓←↓→| \\
+boxban-medium 100 & \verb|←←←←↑→↑←↑↑→↓↓↓→→↓→↑↑→↑←↓↓↓→↑↑→→↓←←| \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\clearpage
+\subsection{Boxoban (hard)}
+\subsubsection{Unsolved}
+\begin{figure}[ht]
+    \centering
+    \includegraphics[width=\textwidth]{images/appendix/test_dataset/boxban-hard_unsolved.pdf}
+    \caption{loss of the "$10\times{10}$ grid with two boxes" model with a batch size of 1}
+\end{figure}
+
+\clearpage
+\subsubsection{Solutions}
+
+\begin{center}
+\begin{longtable}{ll}
+\caption{A simple longtable example}\\
+\toprule
+game idx & DeepCubeA\\
+\midrule
+\endfirsthead
+boxban-hard 1 & \verb|←←↓←←↑↑↑↑→↓↑→↑→↑→→↑↑←↓→↓↓←←←↓←←↑→→→→↓→↑←←←↓←←↓↓↓→→↑←↑↑←↑→→←↓↓→↓↓←↑↑| \\
+boxban-hard 2 & \verb|↓←←↓↓↑↑→→↓↓←↑↓↓↓←←↑→↓→→↑↑↑←↑↑↑↓↓↓←↓↓| \\
+boxban-hard 3 & \verb|→↓↓↓←←↑←↓→↓→↓→↑↓→→↑↑←←↑↑←↑↑↑→↓↓↓↓↓→→↑←↓←←↓↓→↑←↑→→←←↓←←↑→→→↑↑←↑↑→↓↓↓↓| \\
+boxban-hard 4 & \verb|→→↑→↑↑↑←↑→→→↓→↓↓←↓→↓↓←←←↑↑↑↑↑←↑→→↑→→↓↓↓↓↓↑↑↑↑↑←←↓→↑→↓↓←↑←←↓↓↓↓↓←←←↑→→↓|\\&\verb|→↑↑| \\
+boxban-hard 5 & \verb|↓→↓↓↓←↓↓→→→→↑←↑↑↑↑←←↓→↑→↓↓↓←↑↓←↓↓→↑→↑↑←↓↑→↑↑←↓←↓↑→↓| \\
+boxban-hard 6 & \verb|→↓→→↑↑→↑↑→→↓↓←→↑↑←←↓↓→↓↓→↑↑←←←↓→←↓←←↑→↓→→↑↑→→↓↓←←↑↑↑↑→→↓↓| \\
+boxban-hard 7 & \verb|↓↑→↓→↓↓←←↓↓→→→→↑→←↓←←←←↑↑→↓←↓→→←↑↑→↑↑←←↓↓↓| \\
+boxban-hard 8 & \verb|↓↓↓→↓↓←←↑←↓←←↑→→↓→→→↑↑←↓→↓←←←↑←←↓→↑→→↓→→↑↑←↑←↓↓↑↑→↑↑←↓| \\
+boxban-hard 9 & \verb|↑→↓→→↓↓←←↓↓←↓↓→→↑←↓←↑↑→↑↑→→↑↑←←↓↓↑→↑→↓↓←←↓↓←↓↓→→↑←←↓←↑←↓←↑| \\
+boxban-hard 10 & \verb|↑↑↑↑↑↑↓↓↓↓↓↓←←↑→↓→↑↑↑←↓→↓←↑↑→↑↑←↓↑→→↑↑←↓↓↑↑←←←←↓←←↑→→→→→| \\
+boxban-hard 11 & \verb|→↑←←←←←↓↓←←↑↑→↑→↓↓↑→→↓←↑←←←↓↓→↑←↑→→| \\
+boxban-hard 12 & \verb|↓←↓↓←↓↓→→→→→↑↑↑↑←←←↑←↓←↓↓→→↑↓←←↓↓→→→→→↑↑↑↑←←←↓←↓↓←↓→→←↑↑↑→↑↑←↓←↓↓→→↑←↑|\\&\verb|→→→→↓↓←↑→↑←←←| \\
+boxban-hard 13 & \verb|→↓↓←↓→↓↓←←←←←←←↑↑↑→→↓→→↓↑←←↑←←↓↓↓→→→→↑↑↑←↓→→→↑←↓←←↑←←↑←↓↓↓| \\
+boxban-hard 14 & \verb|→→←↓→→↑↑→→↓↓←↑←←↓→↑→↑→↑↑↑←←↓→←↓↓→↓←↓←←↑→→↑→→↓↓←↑←↑→←↑→| \\
+boxban-hard 15 & \verb|→↑→←↓←←↑→↓→→↑↑→→↑↑←↓→↓↓↓←←↑→↓→↑↑↓←↓←←←↑→→→| \\
+boxban-hard 16 & \verb|↓→→↓→↓↓←↑↓←←←↑→→↓→→↑↑↑←←←↓↑→→→↓↓↓←←↑→↓→↑←↓←←←↑→| \\
+boxban-hard 17 & \verb|←↑↑←←↑↓←←↑↑↑→→→↓←↓↓→→↓↓→→↑←→→↑↑←↓←←←←↑↑↑←←↓↓↓→←↑↑↑→→↓←→↓↓→→↓→↓→↑→↑←←←| \\
+boxban-hard 18 & \verb|↑←↓←↑↑↑→↓←↓↓→→↑→↑←↓↓←←↑→→↑←↑←↑↑↓↓↓| \\
+boxban-hard 19 & \verb|↑↑↑↓↓←←↓↓↓→→→→→↑↑↑↑↑←↑←↑←←↓→↓↓↓↓←↑←↓↑←←↓→↑→→→↑↑↑→→↓→↓↓↓↓↓←←←←←←↑↑←↑→→→|\\&\verb|↓→↑↑↑↓↓←←←↓↓↓→→→→→→↑↑↑↑↑←↑↑→↓↓←↑←↑←←↓→↓↓↓↓←←↓←↓→→→←←↑←↑←↑→→→↓→↑↑↑↑→↑←→|\\&\verb|↓→↓→↓↓↓| \\
+boxban-hard 20 & \verb|→↓↓↓←←←←↑→↑↑↑↑↑↑←←←←↓→←↓↓→↑↑→→↑→↓←←←←↑→↓↓→↓↓←↓↓→→→↓→↑↑| \\
+boxban-hard 21 & \verb|↑→↑↑→↑↑←↑←↑→↓→↑→↑→→↓←←←↓←↑↓→↓↓←↓↓→↑←↑↑| \\
+boxban-hard 22 & \verb|←↓↓→↓↓↓←←↑←←↓→↑→→↓→↑↑↑←↓→↓←←→↑↑↑↑→↑↑←↓↓↓↓→↑↑↑| \\
+boxban-hard 23 & \verb|↑↓→→↑↑←↓→↓→→↑←↓←↑←←↓→→→| \\
+boxban-hard 24 & \verb|↓←↑↓↓←←↑↑→↑↓↓→→↑←↓←←↓→←↑↑↑→↓↓| \\
+boxban-hard 25 & \verb|↑↑←↑↑→↑↑←←←←↓←←←↓↓→↑←↑↑→→→→→↓↓→→↑↑←←↓↓→↓↓→↑↑↑↓←←↑↑→↓↑←←←←↓←| \\
+boxban-hard 26 & \verb|↓←→↓↓←↑↑→↑←←←←←↓←↑↑↓→→→↓↓→↓→↑↑→↑←←←←←↓←↑→↑↑←↑↑→↓↓↓↓→→↓↓→↑→↑←←←←←↑↑| \\
+boxban-hard 27 & \verb|↓↓←↓←←←↑↑→→←↓↓→→→↑↑↑←↓←←↑←↑←←↓←↓→→↑↓→→→→↑→↓| \\
+boxban-hard 28 & \verb|↓←↓↓↓→↓←←←←←↑←←↓→→→→→←←↑←←←↑↑→→↓↓←↓→→↑←↑↑←↑↑→↓↓↓↓→↓←↑←↑| \\
+boxban-hard 29 & \verb|↑↑↑↑↑→↑→→↓←←↑←↓↓↓→↑↓←↓↓→→↓→→←↓←←↑↓←↑↑↑| \\
+boxban-hard 30 & \verb|←↓↓←↓↓↓←←↑↑←↑↑→→↑→←↓←←↓↓→↓↓←↑↓→→→↑↑↑→↑→↑↑←↓←←↓←↓↓↓←↓→→→↑→→↓←←↑↑↑→↑→↑←↓|\\&\verb|↓↓←↓→↓←←←| \\
+boxban-hard 31 & \verb|↑↑↑↓→↑→↑↑←↓↓↑↑←↑↑→↓↓→↓↓←↑↓←↑←↓←↓↓↓→→↑←↑↓↓←↑↑→↑| \\
+boxban-hard 32 & \verb|←←←↓→↑←←←←↓→→↑→→→↓↓↑↑→→↓↓↓←←↓←→↑←←↓→↓←→↑→↑↑↑→↑→↓| \\
+boxban-hard 33 & \verb|↑↑↑↑→→→↑↑←↓→↓↓↓↓↓←←←↑↑↑↑↑→↓←↓↓↓↓→→→↑↑↑↑←←↑←↓↓↓↓↑↑↑→→→↑↑←↓→→↓↓↓↓↓←←←←→→|\\&\verb|→→↑↑↑↑←←↑←↓↓↓↓↑↑↑→→→↓↓↓↓←←←→→→↑↑←↓| \\
+boxban-hard 34 & \verb|↑↑←←↓↓←←←←←↑↓→→→→→↑↑→→↑↑↑←↓↓→↓↓↓←←↑↑→←↓↓→→↑↑↓↓←←←←←←↑←↑| \\
+boxban-hard 35 & \verb|→↑→→↑←←↓←↓←←↑→→→←←←↑↑→↓←↓→↓→→↑↑←←→→→→↓→→↑←←←←↓→←↓←←↑↑→| \\
+boxban-hard 36 & \verb|←↓→↓→↓→→↓↓←↑→↑→→↓↓←→↑↑←←↓←↓↓→↑→→↓←↑←←↑↑←↑↑→↓↓↓↑↑↑→←↑←←↑↑→→→→→| \\
+boxban-hard 37 & \verb|↓↓↓↓→←↑↑→↓→↓→↓↓←↑↑↓↓←←↑→←↑→↑↑←↓↓→↓↓→→↑↑←→↓↓←←↑↑←↑↑→↓↓→→↓↓←←←↑↑→↓←↓→| \\
+boxban-hard 38 & \verb|↓↑←↓↓↓↓→→↑→→↓←↑←←↓←↑↑↑→↓←↓→→→| \\
+boxban-hard 39 & \verb|↓↓↑→↓↓↓↓↓←↓→→↑←↑↑↑↑←←↑←←↓→→→↑→↓↓↓↓→↓↓←↑↑↑←↑↑→↑←↓↓↓→↑↑↓↓↓→→↓→↓←→↑↑| \\
+boxban-hard 40 & \verb|→↓↓←←←↑↑→↓→→↑←↓←←↑↑→↓←↓↓→→→→→↑↑←←←←↓←↑↓↓→→→→| \\
+boxban-hard 41 & \verb|←←←↑↑←↑↑↑↑↑→→→↓→→→↓↓→↓↓←←↑→↓→↑↑←↑↑←←←↑←←↓←↓↓↓↓→↓→↓→→→→↑↑↑↑↑↑←←←↑←←←↓↓↓|\\&\verb|→↓↓↑↑↑↑←↑→→| \\
+boxban-hard 42 & \verb|→→↓↓↓↓←↓→↑↑↑↑↑→→↓↓→→↑↑←↓→↓←↑←←| \\
+boxban-hard 43 & \verb|↓↓↓→↓←↑↑↑→↓↑←↑↑→↓←←←↑←←←↓↓↓↓↓↓↓→→→→→↑↑↑↑↑↑→↑←←↓→↓↓↓↓→→↑←↓←↑↑↑↑→↑←→↓↓↓←|\\&\verb|↓↓→→↑←↓←↑↑↑↑| \\
+boxban-hard 44 & \verb|↓→↓↓←→↑↑←↓←↓↑→→↓←↓←←←↑←→↓→→→↑↑←↓←↓←←←→↑→→→↑→→↓←↓←←↑←←↓→↑→→↑→↓| \\
+boxban-hard 45 & \verb|↑→↑→→↓↓→↓↓↓↓↓←↑→↑↑↑↑←↑↑←←↓→←↓←←←↑→→→↑→→→↓↓←↑→↑←→↓↓↓↓↓↓| \\
+boxban-hard 46 & \verb|↓↓↓→→→→↑←→↑←←←→→→↑↑←↓↑↑←←↓↓↓→↓↓←←←→↓↓↓←←↑↑↑→→→↑↑←↓↓↓↓→↓←←→↑→↑↑→→→↑←←←↑|\\&\verb|←↓↓↓↓| \\
+boxban-hard 47 & \verb|↑→→↓↓↓←←↑→↓→↑↑↑↑↓←←↓→↓↓←←↑→↓→↑→↑↑←↑↑←↓↓↓→←↓| \\
+boxban-hard 48 & \verb|↓↓←←←←←↑→→↓→→→↑↑↑←↑↑→↓↓←↓↓→↓←←←↑→←←←↓←←↑→→→→↓←→→→↑←→↑↑→↑↑←↓→↓↓| \\
+boxban-hard 49 & \verb|→↓↓←←←→→→↑↑←←↓←↓→→←←↑←←↓→↓↓←←←↓↓↑→↑→→↑↑↑→→↓←↑←↓→↑→↑→→↓←←←↓←↑→→→→↓↓| \\
+boxban-hard 50 & \verb|←←↑↑←←↓↓→↓←←→→→↑→→↓←←↑↑↑←←↓→| \\
+boxban-hard 51 & \verb|↑→↑←←↑←←↓↓→↓↑←↑↑→↓→→→↑←←↓←←↓↓→↑←↑→↓↓←↓↓→↑↑←↓↓↓↓→↑↑←↑↑→↑| \\
+boxban-hard 52 & \verb|↑←←↑↑↑→→↓↓←→↑↑←←↓↓→→↑←↓↓↓→↑↑| \\
+boxban-hard 53 & \verb|→↓↓←↓↓↓←←←←←←↑→↓→→→→→↑↑↑→↑↑←↓↓↓←↓→↓←←←↑→←↓←←↑→→↓→→→↑↑←↓→↓←←←↑→↓→↑←←←←↓|\\&\verb|→| \\
+boxban-hard 54 & \verb|→↓→↓←←→↑↑←↓→↓→↓↓↓←←←←↑↑↑↑→→←←↓↓→↑←↓↓↓→→→→↑↑↑←←↑↑→↓→↓↓↓↓←←←←↑↑↑↑→→↓←↑←↓|\\&\verb|→↓←↓↓→→→→↑↑↑←←←↑←↓↓↓←←→→↑↑→↑→↑→↓→↓↓↓↓←←←←←| \\
+boxban-hard 55 & \verb|→→→→→→→↑←↑↓↓←←↑→↓←←←↑→→↓→→→↑↑←↓→↓←←←↑→←←←↓←←↑→→→→↓←←→→→→→↑↑←↓→↓←←←↑→↓→|\\&\verb|→↑↑←↓←←←←↓→→↑←←←←↓→→→| \\
+boxban-hard 56 & \verb|→↓←↓↓→↓↓↓↓←↑→↑↑↑←↑↑→↓↓↓↑↑↑←←←←↓←| \\
+boxban-hard 57 & \verb|←↑↑→↓↓→↓←←←↓↓←↓→↑↑←↑→→→↓↓←←↓←↑→→→↓←←| \\
+boxban-hard 58 & \verb|↓↓↓→↓↓←←↑←↓←←↑→→↓→→→↑↑←↓→↓←←←↑←←↓→↑→→↓→→↑↑←↑←↓↓↑↑→↑↑←↓| \\
+boxban-hard 59 & \verb|←↑←↓↑↑→→→←←↓↓→↑→↑→→→←↓←←←↓←←↑→↑→→↓←↓←↑| \\
+boxban-hard 60 & \verb|↓→↓→→→→→↓→↓↓←←←←←←↑↑↓↓←↑↑↑↑↑↓↓→→→→←↓←↑←↓←↓↓→→→→→→→↑↑←←↑→↓↓→↓←←←←←←| \\
+boxban-hard 61 & \verb|→→→→→↑→↑↑←↓→↓←↓←←↑↑→→→↓→↓←↑↑↑→↓←←←←↓→→←↓←←←←↑| \\
+boxban-hard 62 & \verb|→→↑↑↑↑↑↑↑←←←←↓→→→←←↓↓↓←←↓↓→↓→↑↑↑↑↑↑←↑→↓↓↓↓↓←↓←↓←←↑→→↑↓→↓→↑↑↑↑↑↓↓↓→↓↓→→|\\&\verb|→↑↑↑↑↑←↑←←→→↑→↓↓↓↓↓| \\
+boxban-hard 63 & \verb|↑←↑→→→↓←↑←↓↓↑→→↑→↑→→↓↑←←↓→→↑→↓↓↓↑↑←←↓→↓↓↓↑↑→↑↓↓↓↓←| \\
+boxban-hard 64 & \verb|→→↓↓→→↑←→↑↑←↓←←←↓↓→→←←↑↑→→↓←↑→→→↓←→↓↓←↑↑| \\
+boxban-hard 65 & \verb|→→→↑→↑↑←↓→↓←↓↓→↑↓↓↓←↑↑↑←←↓→→↑→↑↑←↓→↓↓↓| \\
+boxban-hard 66 & \verb|←←←↓↓←↓←↓↓→↑↑→↑↑↑←↑←↓↓↓↓→↓↓→↑↑↑↑↓↓←←↑↑↑↑→→→↓→→↑←↓←←↓↓←↓←↑→↓↓↓←↑↑| \\
+boxban-hard 67 & \verb|→→→→←←←←↑→→→←←←↓↓↓↓↓→→→↑→↑→↑↑↓↓←↓↓↓←↓←↑←←↓←↑↑↑| \\
+boxban-hard 68 & \verb|↑↑↑↑↑←↑↑→→→→↓↓←→↓↓←↑↑→↑↑←←←←↓↓→→←←↑↑→→↓←←←←→→↑→→→→↓←←←←→→→→↓↓←↑→↑←←↑←←|\\&\verb|↓←↑←←↓| \\
+boxban-hard 69 & \verb|↑↑↑↑→↑→→↓←↓→←←↓←↑| \\
+boxban-hard 70 & \verb|→→←←↓↓↓→→→→→↑→↓→↓↓←↑↑←←↓→↑→→↓↓←↑→↑←←←←←↓→→→→←↑←←←←| \\
+boxban-hard 71 & \verb|↑↓←←↑→↑↓↓→→↑←→↑←↑↑←←↓→↑→→↓↓←↓↓←←↑→↑↑←↑→↓↓↓↓→↑| \\
+boxban-hard 72 & \verb|→→↓↓↓←←←↓←←↑→→↓→→↓→→↑←←←←→→→↑↑↑↑←←↓→↑→↓↓↓→↓→↓←←↑↑↑↑↑↑| \\
+boxban-hard 73 & \verb|←←↓←←↓↑→→↑↑→←←↓→↓←↓←←↑↑→↓→→↑↑←↓→↓←↓←↓| \\
+boxban-hard 74 & \verb|↑→→→→→↓←↓↓→↓↓←↑→↑←↑↑↑←←↓→↑←←←↓→→↑→→↓↓↓→↓↓←↑↑↑↑→↑←←←↓→←←←↑←←↓→→→→↑←←→→→|\\&\verb|→↓↓↓→↓↓←↑↑↑↑→↑←←←↓→↑→↓↓↓↓↑↑↑←←←←↑→→→←←←↓←←↑→→| \\
+boxban-hard 75 & \verb|↓↓→→↓↓↑↑←←↓↓→↓→→→→→←←←←↑←←↑↑→→↓↓←↓→→→→←←←←↑←↑↑↑↑→↑↑←↓↓↓↓↓→↑→↓↓←↓→→→| \\
+boxban-hard 76 & \verb|↓←←←↓←←↑↑→↓←↓→↑→→→↑↑↑→↑→↓→↓↓←←↑←↓→↓←←←←↓←↑→→→→→↑→→↑←←→↑↑←↓←↓↓→↓←←←→→→↑|\\&\verb|→↑←↑←↓↓→↓←←↓←←| \\
+boxban-hard 77 & \verb|↓↓→↓↓←↓↓→→←←↑↑→↑↑←↓↓→↓→→↑←↓↓↓←←↑→↓→↑←↑↑↓→| \\
+boxban-hard 78 & \verb|↓↓→↓↓←↓↓↓→→→↑→→→→↑↑↑↑←↓↓→↓↓←←←←↓←←↑→→→→→↓→↑↑↑←↓→↓←↑↑↑↑→↓↓←↓↓←←←←↓←←↑↑↑|\\&\verb|→↑↑←↓↓| \\
+boxban-hard 79 & \verb|→→↑→→↓↓→→↑↑←←←←↓→↑→→→↓↓←←↑←↑→→←←←↓←←↑→→←←↓↓↓↓↓↓→↓→→↑→→←↓←←←↑→| \\
+boxban-hard 80 & \verb|↑↑←↑↑↑→→→→→→↓↓↓←↓↓→↑↑↑↑→↑←←←←←↓←←↓↓→↑←↑↑→→↓←↓↓↓↓→→→↑→→↑→↑| \\
+boxban-hard 81 & \verb|↑↑←→↓↓←↑↓→↓↓←↓↓→↑←↑↑→↑↑←↓↓↓↓←↓→↑→↑↑←↑↑→↑↑←↓↓↓↓↓→↓↓↓←→↑↑↑| \\
+boxban-hard 82 & \verb|↓↓↓↓↓↓←←↑→→↑↑←↓↓→↓←↓←←←↑↑→→→↓→→↓←←↑↑↑→↓←←←←↓↓→↑←↑→→→↓←→↓→→↑←↑←←↓→←↑←←↓|\\&\verb|→↓→| \\
+boxban-hard 83 & \verb|↑←↓↓←↓↓→→→→↓↓←↓←←←↑→→→↓→↑↑↑←←←↓↑↑↓→→→↑↑←↓→↓↓↓←←↓←←↑→↑↑→→↑→↓| \\
+boxban-hard 84 & \verb|→↓↓←←↑→←←←↓←↑↓←↑→→↓→→| \\
+boxban-hard 85 & \verb|→↓↓←←↓↓→↑↓←←←←←↑↑↑↑↑←↑→↑→↓↑→→→→↓→↓↓↓↓←→↑↑←↓←↓↓→↓←←←←→→→↑↑→↑→↑↑↑↑←←←↓→→| \\
+boxban-hard 86 & \verb|←←←←←↓↓↓↓↓↓→↓→→↑↑→↓→↓←←←←↑→→→←←←←↑↑↑↑↑↑→→↓←↑←↓↓↓↑↑↑→→→→↓←←←| \\
+boxban-hard 87 & \verb|←←←↓←←↑←←↓↓→↓←↑↑↑→↓→→→↑←←↓←←↓↓→→↑↓←←↑↑→→→←↓↓←↑| \\
+boxban-hard 88 & \verb|↓→↓↓←↓↓↓→→→↑↑↑←→↓↓↓←←←↑↑→→↑→↓←←←↑→→←↑↑←↓↓↓↓↑→→→→↓→↓←←←| \\
+boxban-hard 89 & \verb|←←←↓←↑↓↓→↓↓→→→↑↑↑↑↑↑←↓↓→↓←←↑←↓↓| \\
+boxban-hard 90 & \verb|↑↑↑→↑↑←↑↑→↓→→↓↓←↓←←↑↑↓↓→→↑←↑→| \\
+boxban-hard 91 & \verb|←↓←←←←↑←↓→→→↑←↓→→→↑←←↓←←←↑↑→↓←↓→→→↑→→↓←↑←←↓←←↑↑→↓←↓↓↓↓↓→→→→→| \\
+boxban-hard 92 & \verb|↑↑←↑↑↑→→↓→←↑←←↓→←↓↓→↑↑←↑→→→↓←←↑←↓↓↑→→→→→↓→↓↓↓↓←↓←←←←↑↑↑↑↑←↑→↑→→↓→→↑→↓↓|\\&\verb|↓| \\
+boxban-hard 93 & \verb|↑→→↓↑←←↓↓→↑→→↓←↓→→→↑←←↑←←←↓↓→→→| \\
+boxban-hard 94 & \verb|↑→↑↑→↑→↑←↓↓←←↑→←↑↑→↓←↓↓→↓↓←↑↑↑↑→↓↑→→↓←↑←←↓↓↓↓→→↑↑↑↓↓←←↑↑↑→→| \\
+boxban-hard 95 & \verb|←↓↓↓→→↑←↑←↑→↓↓↓←↑↓←←←↑↑→↓←↓→↑→→↓→↑↑↑↑↓←↓→↓←←←↓→| \\
+boxban-hard 96 & \verb|→→↑→↓→↓←→→↓↓↓←←↓←←↑←←←↑↑↑↑→→→→→↑→↓→↓↓↓↓↓←↑←←←←←↓←↑↑↑↑| \\
+boxban-hard 97 & \verb|↓↓←↓↓→↓↑←↑↑→↑↑←↓→↓↓←↓←↓↓→↑↑↓→↑| \\
+boxban-hard 98 & \verb|←↓↓←←↑↑↓↓→→↑↑←↑←←←↑←↑↑↑→↓←↓↓→↓→→→↓→↓↓←↑←↑↓↓←←↑←↑↑↑↓→→↓→↓→→↑←↑←←←↑←↑↑→↓|\\&\verb|↓←↓→| \\
+boxban-hard 99 & \verb|↓→↓→↓↓←←↑↑→→↓→↓→→↑→→↓←←←←↑→→←←←↑←←↓→→←↓→↑→→| \\
+boxban-hard 100 & \verb|↓→←↓↓→↑→→↓←↑→↑↑↑↑←↑↑→↓↓↓↓↓↓←↓→↑↑↑←↓←↓←↓→| \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\clearpage
+\pagebreak
+\section{Email correspondence} \label{sec:emails_ssrl}
+
+\begin{figure}[h]
+    \centering
+    \begin{quotation}
+    \begin{verbatim}
+Dear Mr. Hougen,
+
+I am a student in computer science at Heidelberg University (Germany), and as part of my
+final project for the lecture Advanced Machine Learning with Prof. Ulrich Köthe, I will
+be implementing the SSRL algorithm to learn the game 'Sokoban'.
+
+I have a question regarding the neural network architecture chosen for this algorithm
+and, relatedly, a question about the formula used for eligibility traces.
+
+1) In the paper, you chose to use a single layer architecture. Is it possible to expand
+this to multiple layers?
+
+2) The formula for the eligibility trace e_u_i,j(k) = x_i(k)*(w_i,j(k) - u_i,j) is chosen
+to scale with the value of the input to the network x_i. This makes sense intuitively: An
+input of zero has an equal (zero) effect on all output nodes of the network and therefore
+shouldn't take credit for the action suggested by the network.
+
+However, in the design of your experiment, all inputs are in {0, 1}. If negative values
+were permitted as inputs, the eligibility traces would depend on the sign of the input.
+
+My understanding is that the factor x_i(k) is meant to scale with the influence an input
+node had on the output, and because of this, if we allow negative inputs, it should read
+|x_i(k)|*(...) in the formula (analogously for the std. eligibility traces).
+
+This becomes relevant in the multi-layer case: Even if all inputs are positive, outputs
+of nodes in hidden layers may be negative.
+
+Thank you for your time,
+
+Jakob Weichselbaumer 
+
+    \end{verbatim}
+\end{quotation}
+
+    \caption{Initial inquiry w. Prof. Hougen}
+    \label{fig:jakob_mail_1}
+\end{figure}
+\begin{figure}
+    \centering
+    \begin{quotation}
+    \begin{verbatim}
+        
+Jakob,
+
+Thanks for your questions regarding our paper. My apologies for the   
+slow reply. Your email was buried under the start-of-semester email   
+avalanche.
+
+1) Yes, it is possible to use SSRL with a multi-layer architecture.   
+We used just one layer in the original work because that was all   
+that was needed for that problem. However, we have papers under   
+review in which we took the changes made in that weight layer and   
+backpropagated them to a previous layer. In theory, there should be   
+no reason such changes couldn't be backpropagated through arbitrary   
+prior layers using any arbitrary gradient-adjustment algorithm.
+
+2) Yes, your intuitive understanding of the eligibility trace is   
+correct -- we use the term x_i(k) to scale the change based on the   
+degree to which that input might have influenced the output. In our   
+paper, we only considered inputs of 0 or 1 and wrote Equation 4 for   
+values in the range 0 to 1. However, if the input values can take on 
+  negative values, we'd need to take the absolute value of x in   
+Equations 4 and 7.
+
+If you have more questions, please don't hesitate to ask. Good luck   
+on your projects!
+
+Prof Hougen
+
+PS. I've added Dr Shah to the email, in case he would like to add   
+any commentary.
+
+    \end{verbatim}
+    \end{quotation}
+    \caption{Answer regarding activations and multi-layer generalization}
+    \label{fig:hougen_mail_1}
+\end{figure}{}
+
+\begin{figure}
+    \centering
+    \begin{quotation}
+    \begin{verbatim}
+        Dear Mr. Hougen,
+
+thank you for your reply, it was not too late for my purposes.
+
+I have a follow-up question regarding your response to my first question, as it relates
+to a multi-layer architecture:
+
+When you speak of "backpropagating the changes made in that layer", are you suggesting
+that the eligibility traces should be recursively multiplied together to account for the
+*cumulative effect* of that weight's deviation from its mean (w_i,j(k) - u_i,j) on the
+output of the network?
+
+Or should eligibility traces depend only on how each weight amplifies its immediately
+preceding input?
+
+Finally, may I quote this email dialog as part of the final report for the project? I can
+send you a copy once it is finished.
+
+Jakob
+    \end{verbatim}
+    \end{quotation}
+    \caption{Follow-up question regarding backpropagation}
+    \label{fig:jakob_mail_2}
+\end{figure}{}
+
+\begin{figure}
+    \centering
+    \begin{quotation}
+    \begin{spverbatim}
+        Jakob,
+
+Regarding backpropagation in multi-layer networks, the idea is that first we make changes to mu values in the final layer of the network exactly as shown in the paper, then we need to figure out how to change weights in the previous layer(s) of the network using backprop. Here we note that changes made to mu in Equation 3 are similar in concept to changes made to weights in the final layer of a feedforward ANN using supervised learning. So, if the weights in the final layer are w_ij and the weights in the penultimate layer are v_hi, the usual backpropagation rule (not including momentum) for updating the v_hi weights is
+
+        v_hi(tau + 1) = v_hi(tau) + delta v_hi(tau)
+
+where delta v_hi(tau) is
+
+        delta v_hi(tau) = learning rate * derivative of activation function in penultimate layer * input of previous layer * summation over J of (error * derivative of activation function in output layer * w_ij).
+
+However, because we're not doing supervised learning, we don't have an error value. So, instead, we take the summation over J of the changes to mu_ij (which are after the + sign in Equation 3).
+
+Feel free to add this dialog to your report. Please do send me a copy when it is completed.
+
+Prof Hougen
+    \end{spverbatim}
+    \end{quotation}
+    \caption{Response regarding backpropagation}
+    \label{fig:hougen_mail_2}
+\end{figure}{}
+
+\end{appendices}
+
+\clearpage
 \bibliographystyle{unsrt}  
 \bibliography{references}
 

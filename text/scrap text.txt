@@ -7,3 +7,88 @@ However, receiving a response from one of the coauthors of the SSRL paper served
 
 The lack of mathematically explicit specification of the multi-layer algorithm and the sparsity of our email exchange overall meant that there was significantly more "figuring out" to be done than in the single-layer case, which was compactly described on 3 A4 pages. The author will say that he was concerned with asking few, but useful questions, so as not to waste the professor's time and to make the most of the information given. In a perfect world, the author would have had access either to a paper describing the multi-layer algorithm in detail or an in-person discussion with someone who knows how it is meant to work. 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+NEW QUESTIONS: 
+
+1) You say we should use the "exact same update formula" for the last layer - is that with or without the switch to $|x_b(k)|$? Do the eligibility trace formulas in the hidden layers use $|x_b(k)|$ or $x_b(k)$?
+
+2) Why do the eligibility traces for the weights in the last layer of the network not consider the gradient of the activation function in the last layer, while the eligibility traces for the weights in hidden layers do use it? (This is referring to the description you gave in your last email)
+
+3) Are the above eligibility trace formulae for the multi-layer case correct?
+
+4) Does the structure of the Sokoban task (in which the output of the network must be an integer label in [0, 3] and the arg max of the net's output is chosen) affect the formula for the eligibility traces or any other part of the update rules used by the algorithm? I understand that the algorithm was designed for continuous control tasks and not this type of output, and I plan to test it on one such task as well. 
+
+5) The following question applies anaologously to the eligibility trace formula for the standard deviations: What do you think of the suggestion that one should take the absolute value of the sum of the gradients (rightmost factor in equation 7), and not only the sum of the gradients? This I suggest because we do not know whether increasing or decreasing the final output of a node in the last layer of the network is better; we only know how much of an effect a weight's deviation from its average $w_{b, ij}(k) - \mu_{b, ij}(k)$ had on the output of the network (which we know by approximation through the derivative). Using the current formula, an increase in the weight which was associated with increased reward would not necessarily lead to the mean for that weight being positively increased \textbf{if} the gradient is negative - this defies my intuitive understanding of what the eligibility traces are supposed to do. 
+
+The logic is: if we increased the weight relative to its mean and it had a big effect on the output of the network, we should increase it in that direction if that increase resulted in a greater reward (or lower it if it resulted in lesser reward), proportionately to how big the effect on the output was. 
+
+It doesn't matter whether the change in the weight resulted in the outputs in the last layer increasing or decreasing per se, what matters is \textit{how great of a change it was}, because we don't actually know whether a numerically greater or lesser output is preferred for an arbitrary task. We only know what direction we moved the weights in, how much of a difference it made, and whether we got a greater reward after doing it. In summary, the suggestion would be to take the absolute value of all factors except for $w_{b, ij}(k) - \mu_{b, ij}(k)$
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Long-term and future-oriented planning is a challenging task due to the many possible decisions to be made. Often it is not clear which current decision is preferable at a later point in time. In addition, the number of possible decision combinations increases exponentially with each further decision. A game in which the long-term and future-oriented planning of importance is Sokoban.
+
+In our final project as part of the lecture "Advanced Machine Learning", we explore different approaches to solve Sokoban games. 
+
+
+
+
+
+Long-term and future-oriented planning are challenging problems from the field of reinforcement learning, for which few generally effective algorithms are known. These problems are difficult because a single action can have substantial influence on the outcome or even the solvability of a game at a later point in time, and because combinatorial planning games are often too large to solve with exhaustive-search approaches, as the number of decision combinations generally increases exponentially with the number of time steps. 
+
+This project, as part of the lecture "Advanced Machine Learning", reviews and analyses the application of three reinforcement learning algorithms to the puzzle game "Sokoban". 
+
+very small differences in agent action at one time can have substantial influence on the outcome of the ga
+
+
+ challenging subfields 
+
+
+
+
+
+
+
+
+
+

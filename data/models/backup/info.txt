@@ -1,4 +1,4 @@
-SSRL_49_shallow - Shallow network trained with the exact algorithm and architecture from the paper. (diff_by_all=True) (Model created before impl. of "start_at_1", but just leave the parameter unspecified to load it with the correct default "True" value). Shouldn't matter for plotting history 
+SSRL_49_shallow - Shallow network trained with the exact algorithm and architecture from the paper. 
 
 
 SSRL_4_shallowCartPole - (start_at_1=False, use_special_binary_output=True)

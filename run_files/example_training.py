@@ -6,11 +6,12 @@ import numpy as np
 import torch
 
 
-agents = [DEEPSSRL(layers=(49, 100, 50, 10, 4), nonlinearity=torch.tanh, show_max_mean=True)]
-          # SSRL(layers=(49, 4), nonlinearity=np.tanh)]
+agents = [DEEPSSRL(layers=(49, 100, 50, 10, 4), nonlinearity=torch.tanh)]
+          #DEEPSSRL(layers=(49, 100, 50, 10, 4), nonlinearity=torch.tanh, use_abs_val_of_grad=True)]
+          #SSRL(layers=(49, 4), nonlinearity=np.tanh)]
 
-names = [# "torch_learner_max_diff",
-         "deepSokobanLikePaper_max_means"]
+names = ["deepSokoban_LIKE_PAPER"]
+         # "shallow"]
 
 for ind, agent in enumerate(agents):
     agent.setParams()  # initialize layer weights randomly

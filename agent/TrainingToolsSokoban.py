@@ -15,7 +15,7 @@ from data.generate_data_Jakob_debug import load_data
 
 class RetryFail:
     def __init__(self):
-        self.ENV_FAILURE_RETRIES = 2
+        self.ENV_FAILURE_RETRIES = 3
         self.failed_this_tau = False
 
     def env_fail(self, excp):
@@ -24,6 +24,7 @@ class RetryFail:
             print("Warning: Environment failure encountered, retrying: ")
             self.ENV_FAILURE_RETRIES -= 1
             self.failed_this_tau = True
+            time.sleep(SLEEP_TIME)
         else:
             raise excp
 
@@ -120,7 +121,7 @@ class TrainingToolsSokoban:
                 raise e
             print("Warning: Reloaded database with faulty sizes. Retrying: ", retry)
             self.loadData(retry=retry-1, test=test)
-        print("Database size:", self.states.shape[0])
+        print("Database size:", self.states.shape[0] if not test else self.states_test.shape[0])
 
     def setProtocol(self, steps:list, training_volume:list):
         """
@@ -143,9 +144,15 @@ class TrainingToolsSokoban:
         """
 
         #  env.reset()
-        env.room_fixed = self.room_structures[index]
-        env.room_state = self.states[index]
-        env.box_mapping = get_box_mapping(self.room_structures[index])
+        if not test:
+            env.room_fixed = self.room_structures[index]
+            env.room_state = self.states[index]
+            env.box_mapping = get_box_mapping(self.room_structures[index])
+
+        else:
+            env.room_fixed = self.room_structures_test[index]
+            env.room_state = self.states_test[index]
+            env.box_mapping = get_box_mapping(self.room_structures_test[index])
 
         player_position = np.where(env.room_state == 5)
         env.player_position = np.asarray([player_position[0][0], player_position[1][0]])
@@ -200,33 +207,33 @@ class TrainingToolsSokoban:
             for tau in range(training_volume):
                 env_fail = RetryFail()
                 for ind_envs, env in enumerate(envs):  # each agent
-                    # try:
-                    testing = False
-                    if (episodes + 1) % self.test_every == 0:
-                        start = np.random.choice(test_sample)
-                        testing = True
-                    else:
-                        start = np.random.choice(sample)
+                    try:
+                        testing = False
+                        if (episodes + 1) % self.test_every == 0:
+                            start = np.random.choice(test_sample)
+                            testing = True
+                        else:
+                            start = np.random.choice(sample)
 
-                    self.initialize_to_state(env, start)
+                        self.initialize_to_state(env, start, test=testing)
 
-                    agent = self.agents[ind_envs]
-                    agent.resetEpisode()
+                        agent = self.agents[ind_envs]
+                        agent.resetEpisode()
 
-                    for t in range(step_distance*5):  # for this many steps
-                        agent.giveObservation(self.getState(env))
-                        action = agent.act(test=testing)
-                        observation, reward, done, info = env.step(action)
-                        agent.giveReward(reward)
-                        agent.incrementTimeStep()
+                        for t in range(step_distance*5):  # for this many steps
+                            agent.giveObservation(self.getState(env))
+                            action = agent.act(test=testing)
+                            observation, reward, done, info = env.step(action)
+                            agent.giveReward(reward)
+                            agent.incrementTimeStep()
 
-                        if done:
-                            break
+                            if done:
+                                break
 
-                    agent.endOfEpisodeUpdate(step_distance, test=testing)
+                        agent.endOfEpisodeUpdate(step_distance, test=testing)
 
-                    # except TypeError as e:
-                    #     env_fail.env_fail(e)
+                    except Exception as e:
+                        env_fail.env_fail(e)
 
                 if env_fail.failed_this_tau:
                     self.refillEnvs(envs)
